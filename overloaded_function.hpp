@@ -36,6 +36,7 @@ int main(int argc, const char*argv[])
 		auto f = make_overloaded_function(
 		[&x](int a, auto b){std::cout<<"a = "<<a<<std::endl; x = 123;},
 		[&x](const char* s, auto b){
+			// look at "b.hello();" line, it can simulate local template!!!
 			b.hello();// notice here: it is an ERROR, but can PASS compile if not used!!!
 			std::cout<<"s = "<<s<<std::endl; x *= 2;
 		});
