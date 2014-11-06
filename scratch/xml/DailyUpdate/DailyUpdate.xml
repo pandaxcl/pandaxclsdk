@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="DailyUpdate.xsl"?>
+<DailyUpdate>
+<!--
+  <class name="DailyUpdate" tableName="daily_updates">
+    <base_class name="Uploadable"/>
+    <attribute name="name" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(255) NULL"/>
+    <attribute name="notes" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="TEXT NULL"/>
+    <attribute name="daily_update_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="created_user_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="type" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(255) NULL"/>
+    <attribute name="date" objc_p="nonatomic,strong" objc_t="NSDate*" sql_t="DATE NULL"/>
+  </class>
+  -->
+  <class name="DailyUpdateSection" tableName="daily_update_sections">
+    <base_class name="Uploadable"/>
+    <attribute name="daily_update_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="name" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(255) NULL"/>
+    <attribute name="notes" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="TEXT_NULL"/>
+    <attribute name="type" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(255) NULL"/>
+    <attribute name="created_user_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+  </class>
+  <class name="DailyUpdateWeather" tableName="daily_update_weather">
+    <base_class name="Uploadable"/>
+    <attribute name="daily_update_section_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="progress_affected" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(255) NULL"/>
+    <attribute name="url" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(1024) NULL"/>
+    <attribute name="temperature" objc_p="nonatomic,assign" objc_t="CGFloat" sql_t="FLOAT NULL"/>
+    <attribute name="wind_speed" objc_p="nonatomic,assign" objc_t="CGFloat" sql_t="FLOAT NULL"/>
+    <attribute name="wind_direction" objc_p="nonatomic,assign" objc_t="CGFloat" sql_t="FLOAT NULL"/>
+    <attribute name="humidity" objc_p="nonatomic,assign" objc_t="CGFloat" sql_t="FLOAT NULL"/>
+    <attribute name="visibility" objc_p="nonatomic,assign" objc_t="CGFloat" sql_t="FLOAT NULL"/>
+    <attribute name="pressure" objc_p="nonatomic,assign" objc_t="CGFloat" sql_t="FLOAT NULL"/>
+    <attribute name="summary" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="TEXT NULL"/>
+    <attribute name="header" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="TEXT NULL"/>
+  </class>
+  <class name="DailyUpdateLabor" tableName="daily_update_labors">
+    <base_class name="Uploadable"/>
+    <attribute name="daily_update_section_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="user_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="company_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="amount" objc_p="nonatomic,assign" objc_t="CGFloat" sql_t="FLOAT NULL"/>
+    <attribute name="created_user_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="role_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+    <attribute name="type_id" objc_p="nonatomic,copy" objc_t="NSString*" sql_t="VARCHAR(36) NULL"/>
+  </class>
+</DailyUpdate>
