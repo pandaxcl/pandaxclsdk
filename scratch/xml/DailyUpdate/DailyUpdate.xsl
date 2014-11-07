@@ -109,7 +109,7 @@
 }
 
 -(BOOL)deleteRow {
-    NSLog(@"Notice: Markup %@ is being deleted", self.uuid);
+    NSLog(@"Notice: <xsl:value-of select="@name"/> %@ is being deleted", self.uuid);
     
     return [super deleteRow];
 }
@@ -118,6 +118,21 @@
 ===========================<xsl:value-of select="@name"/>.m===========================
   </xsl:template>
   <xsl:template match="/DailyUpdate">
+ <![CDATA[
+:map _1 /\(-\{27}\)\zs\h\f\+\ze\1/<CR>
+:map _2 v//e<CR>
+:map _3 "xyj0
+:map _4 v/\(=\{27}\)\h\f\+\1/<CR>
+:map _5 k$
+:map _6 :w! <C-R>=@x<CR><CR><Esc>
+:map \\ _1_2_3_4_5_6
+:set nowrapscan
+]]>
+:normal gg
+:for i in range(<xsl:value-of select="count(class)*2"/>)
+:  normal \\
+:endfor
+
     <xsl:apply-templates select="class" mode="h"/>
     <xsl:apply-templates select="class" mode="m"/>
   </xsl:template>
