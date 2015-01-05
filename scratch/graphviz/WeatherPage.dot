@@ -1,0 +1,14 @@
+digraph{
+	A [label="初始" href="applescript://com.apple.scripteditor?action=new&script=helloworld"]
+	B [shape=record,label="{Snapshot||ZipCode|Container|AddNote||}" href="http://www.csdn.net"]
+	C [shape=record,label="{Snapshot|Warning||Container|AddNote||}"]
+	D [shape=record,label="{Snapshot|||Container|AddNote|Note|Address}"]
+	E [shape=record,label="{Snapshot|||Container|AddNote|Note|Address}"]
+	F [shape=record,label="{Snapshot|||Container|AddNote||Address}"]
+
+	A -> B [label="New\nOnline\n!withPcode"]
+	A -> C [label="New\n!Online"]
+	A -> D [label="New\nOnline\nwithPcode"]
+	A -> E [label="!New\nwithWcode\nwithData\n!withNote"]
+	A -> F [label="!"]
+}
