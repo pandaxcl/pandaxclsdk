@@ -12,6 +12,7 @@
 		4C1CAF5F1A7DB7B700E09CEE /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4C1CAF5E1A7DB7B700E09CEE /* Images.xcassets */; };
 		4C1CAF621A7DB7B700E09CEE /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 4C1CAF601A7DB7B700E09CEE /* MainMenu.xib */; };
 		4C1CAF6E1A7DB7B700E09CEE /* CocoaBindingQuadraticViewTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 4C1CAF6D1A7DB7B700E09CEE /* CocoaBindingQuadraticViewTests.m */; };
+		4C1CAF791A7DB91600E09CEE /* QuadraticView.m in Sources */ = {isa = PBXBuildFile; fileRef = 4C1CAF781A7DB91600E09CEE /* QuadraticView.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +36,8 @@
 		4C1CAF671A7DB7B700E09CEE /* CocoaBindingQuadraticViewTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CocoaBindingQuadraticViewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C1CAF6C1A7DB7B700E09CEE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		4C1CAF6D1A7DB7B700E09CEE /* CocoaBindingQuadraticViewTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CocoaBindingQuadraticViewTests.m; sourceTree = "<group>"; };
+		4C1CAF771A7DB91600E09CEE /* QuadraticView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = QuadraticView.h; sourceTree = "<group>"; };
+		4C1CAF781A7DB91600E09CEE /* QuadraticView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = QuadraticView.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,6 +84,8 @@
 				4C1CAF5E1A7DB7B700E09CEE /* Images.xcassets */,
 				4C1CAF601A7DB7B700E09CEE /* MainMenu.xib */,
 				4C1CAF571A7DB7B700E09CEE /* Supporting Files */,
+				4C1CAF771A7DB91600E09CEE /* QuadraticView.h */,
+				4C1CAF781A7DB91600E09CEE /* QuadraticView.m */,
 			);
 			path = CocoaBindingQuadraticView;
 			sourceTree = "<group>";
@@ -212,6 +217,7 @@
 			files = (
 				4C1CAF5D1A7DB7B700E09CEE /* main.m in Sources */,
 				4C1CAF5B1A7DB7B700E09CEE /* AppDelegate.m in Sources */,
+				4C1CAF791A7DB91600E09CEE /* QuadraticView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
