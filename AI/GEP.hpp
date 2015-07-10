@@ -32,34 +32,87 @@
 //	};
 //}
 
+template<typename F=int>
 struct with_function
 {
-	int f;
+	F f;
+	bool is_terminal()
+	{
+		return f < 0;
+	}
+	size_t args_count()
+	{
+		return 2;
+	}
 };
 
-class DNA:public with_function
+template<typename F=int>
+class DNA:public with_function<F>
 {
+	DNA(const node<F>&n) { this->f = n->f; }
+	DNA(const F f) { this->f = f; }
 };
-class gene:private std::vector<DNA>
+template<typename F=int>
+class gene:private std::vector<DNA<F>>
 {
+	typedef std::shared_ptr<node<F>> node_ptr;
+	node_ptr to_tree()
+	{
+		const gene<F>&K = *this;
+		std::queue<node_ptr> Q;
+		size_t p = 0;
+		auto T = node_ptr(new node<F>(K[p]));
+		p++;
+		Q.push_back(T);
+		while(!Q.empty())
+		{
+			auto n = Q.top(); Q.pop_front();
+			if(n->is_terminal())
+				continue;
+
+			size_t a = n->args_count();
+			for(size_t i=0;i<a;i++)
+			{
+				auto m = node_ptr(new node<F>(K[p]));
+				n.children.push_back(m);
+				p++;
+				Q.push_back(m);
+			}
+		}
+		return T;
+	}
 };
 
-class node:public with_function
+template<typename F=int>
+class node:public with_function<F>
 {
-	std::weak_ptr<node> parent;
-	std::vector<std::shared_ptr<node>> children;
+	std::weak_ptr<node<F>> parent;
+	std::vector<std::shared_ptr<node<F>>> children;
 
 public:
-	std::result_of<F(decltype(children))>::type operator()
-	{
-		return f(children);
-	}
+	node(const DNA<F>&n) { this->f = n->f; }
+	node(const F f) { this->f = f; }
+	//std::result_of<F(decltype(children))>::type operator()
+	//{
+	//	return f(children);
+	//}
 
-	gene to_k_expression()
+	gene<F> to_k_expression()
 	{
-	}
-	void from_k_expression(const gene&k)
-	{
+		std::queue<node<F>*> Q;
+		gene<F> K;
+		Q.push_back(this);
+		while(!Q.empty())
+		{
+			node<F>*n = Q.top();Q.pop_front();
+			K.push_back(DNA<F>(*n));
+			if(n->is_terminal())
+				continue;
+			for(auto&m:children)
+				Q.push_back(m);
+		}
+
+		return K;
 	}
 };
 
