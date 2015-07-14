@@ -125,12 +125,20 @@ class chromosome:private std::vector<gene<F>>
 {
 };
 
+template<typename H> struct F{};
+union A
+{
+	F<int> f1;
+	F<char> f2;
+}all;
+
 
 /***************************************************
 g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 ***************************************************/
 
 #if TEST_WITH_MAIN_FOR_GEP_HPP
+
 int main(int argc, const char*argv[])
 {
 	return 0;
