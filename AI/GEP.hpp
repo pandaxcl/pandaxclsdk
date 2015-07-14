@@ -1,3 +1,6 @@
+#include <memory>
+#include <vector>
+#include <queue>
 //namespace Private
 //{
 //	template<typename F> struct node_impl_base
@@ -32,6 +35,7 @@
 //	};
 //}
 
+template<typename F=int> class node;
 template<typename F=int>
 struct with_function
 {
@@ -83,7 +87,7 @@ class gene:private std::vector<DNA<F>>
 	}
 };
 
-template<typename F=int>
+template<typename F/*=int*/>
 class node:public with_function<F>
 {
 	std::weak_ptr<node<F>> parent;
@@ -116,7 +120,20 @@ public:
 	}
 };
 
-class chromosome:private std::vector<gene>
+template<typename F=int>
+class chromosome:private std::vector<gene<F>>
 {
 };
 
+
+/***************************************************
+g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
+***************************************************/
+
+#if TEST_WITH_MAIN_FOR_GEP_HPP
+int main(int argc, const char*argv[])
+{
+	return 0;
+}
+
+#endif// TEST_WITH_MAIN_FOR_GEP_HPP
