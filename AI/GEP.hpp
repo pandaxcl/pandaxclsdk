@@ -125,13 +125,32 @@ class chromosome:private std::vector<gene<F>>
 {
 };
 
-template<typename H> struct F{};
-union A
-{
-	F<int> f1;
-	F<char> f2;
-}all;
 
+template<typename Unit>
+struct group:private std::vector<Unit>
+{
+	template<size_t N, typename FitnessType, typename Fitness, typename Result>
+	Result roulette_wheel(const Fitness&fitnesses)
+	{
+		FitnessType probabilityOfAccum[N];
+		FitnessType accumFitness = 0.0;
+	
+		for(auto&fitness:fitnesses)
+			accumFitness += fitness;
+	
+		size_t i = 0;
+		for(auto&fitness:fitnesses)
+		{
+			FitnessType p = fitnesses/accumFitness;
+			accumProbability += p;
+			probabilityOfAccum[i] = accumProbability;
+			i++;
+		}
+	
+		Result result;
+		return result;
+	}
+};
 
 /***************************************************
 g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
