@@ -1,6 +1,8 @@
 #include <memory>
 #include <vector>
 #include <queue>
+#include <cmath>
+#include <random>
 //namespace Private
 //{
 //	template<typename F> struct node_impl_base
@@ -126,30 +128,46 @@ class chromosome:private std::vector<gene<F>>
 };
 
 
-template<typename Unit>
-struct group:private std::vector<Unit>
+template<int N_units, typename Unit, typename Real=double>
+struct gene_experssion_program
 {
-	template<size_t N, typename FitnessType, typename Fitness, typename Result>
-	Result roulette_wheel(const Fitness&fitnesses)
-	{
-		FitnessType probabilityOfAccum[N];
-		FitnessType accumFitness = 0.0;
-	
-		for(auto&fitness:fitnesses)
-			accumFitness += fitness;
-	
-		size_t i = 0;
-		for(auto&fitness:fitnesses)
-		{
-			FitnessType p = fitnesses/accumFitness;
-			accumProbability += p;
-			probabilityOfAccum[i] = accumProbability;
-			i++;
-		}
-	
-		Result result;
-		return result;
-	}
+    std::function<void()> lambda_fitness_standard; // 标准适应度计算
+    std::function<void()> lambda_selection_roulette_wheel; // 轮盘赌
+    
+    template<int N_args, int N_result>
+    gene_experssion_program()
+    {
+        struct Local
+        {
+            std::vector<Unit> G;
+            std::vector<Real> fitnesses;
+        };
+        
+        auto local = std::shared_ptr<Local>(new Local());
+        std::srand((unsigned int)time(nullptr));
+        
+        lambda_fitness_standard = [local]()
+        {
+        };
+        
+        lambda_selection_roulette_wheel = [local]()
+        {
+            Real probabilityOfAccum[N_units];
+            Real accumFitness = 0.0;
+            
+            for(auto&fitness:local.fitnesses)
+                accumFitness += fitness;
+            
+            Real accumProbability = 0.0;
+            size_t i = 0;
+            for(auto&fitness:local.fitnesses)
+            {
+                Real p = fitness/accumFitness;
+                probabilityOfAccum[i] = accumProbability;
+                i++;
+            }
+        };
+    }
 };
 
 /***************************************************
