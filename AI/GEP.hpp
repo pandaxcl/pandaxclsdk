@@ -3,6 +3,7 @@
 #include <queue>
 #include <cmath>
 #include <random>
+#include <cassert>
 //namespace Private
 //{
 //	template<typename F> struct node_impl_base
@@ -58,7 +59,7 @@ class DNA:public with_function<F>
 	DNA(const node<F>&n) { this->f = n->f; }
 	DNA(const F f) { this->f = f; }
 };
-template<typename F=int>
+template<typename F=int,typename Real=double>
 class gene:private std::vector<DNA<F>>
 {
 	typedef std::shared_ptr<node<F>> node_ptr;
@@ -87,6 +88,16 @@ class gene:private std::vector<DNA<F>>
 		}
 		return T;
 	}
+    
+    bool mutate(Real probability)
+    {
+        Real p = static_cast<Real>(std::rand())/RAND_MAX;
+        if (p <= probability)
+        {
+            return true;
+        }
+        return false;
+    }
 };
 
 template<typename F/*=int*/>
@@ -131,41 +142,74 @@ class chromosome:private std::vector<gene<F>>
 template<int N_units, typename Unit, typename Real=double>
 struct gene_experssion_program
 {
-    std::function<void()> lambda_fitness_standard; // 标准适应度计算
-    std::function<void()> lambda_selection_roulette_wheel; // 轮盘赌
+    std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
+    std::function<void()> inner_lambda_fitness_standard; // 标准适应度计算
+    std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     
-    template<int N_args, int N_result>
+//    template<int N_args, int N_result>
     gene_experssion_program()
     {
         struct Local
         {
-            std::vector<Unit> G;
-            std::vector<Real> fitnesses;
+            Unit*units;
+            Unit __units_front[N_units];
+            Unit __units_back[N_units];
+            Real fitnesses[N_units];
+            
+            Local()
+            {
+                units = __units_back;
+            }
+            inline Unit*next_generation()
+            {
+                assert(nullptr != units);
+                return units == __units_front? __units_back : __units_front;
+            }
         };
         
         auto local = std::shared_ptr<Local>(new Local());
         std::srand((unsigned int)time(nullptr));
         
-        lambda_fitness_standard = [local]()
+        inner_lambda_fitness_standard = [local,this]()
         {
+            for(int i = 0; i<N_units; i++)
+            {
+                local->fitnesses[i] = this->lambda_fitness(local->units[i]);
+            }
         };
         
-        lambda_selection_roulette_wheel = [local]()
+        inner_lambda_selection_roulette_wheel = [local]()
         {
             Real probabilityOfAccum[N_units];
-            Real accumFitness = 0.0;
+            Real totalFitness = 0.0;
             
-            for(auto&fitness:local.fitnesses)
-                accumFitness += fitness;
+            for(int i = 0; i<N_units; i++)
+                totalFitness += local->fitnesses[i];
             
             Real accumProbability = 0.0;
-            size_t i = 0;
-            for(auto&fitness:local.fitnesses)
+            for(int i = 0; i<N_units; i++)
             {
-                Real p = fitness/accumFitness;
+                Real p = local->fitnesses[i]/totalFitness;
+                accumProbability += p;
                 probabilityOfAccum[i] = accumProbability;
-                i++;
             }
+            
+            
+            Unit*nextGeneration = local->next_generation();
+            Real p = static_cast<Real>(std::rand())/RAND_MAX;
+
+            for (int i=0; i<N_units; i++)
+            {
+                for (int j=0;j<N_units;j++)
+                {
+                    if(p <= probabilityOfAccum[j])
+                    {
+                        nextGeneration[i] = local->units[j];
+                    }
+                }
+            }
+            
+            local->units = nextGeneration;
         };
     }
 };
@@ -178,6 +222,7 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 
 int main(int argc, const char*argv[])
 {
+    auto GEP = gene_experssion_program<100, chromosome<>>();
 	return 0;
 }
 
