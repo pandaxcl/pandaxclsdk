@@ -88,15 +88,18 @@ class gene:private std::vector<DNA<F>>
 		}
 		return T;
 	}
-    
-    bool mutate(Real probability)
+    template<int N_functions, int N_terminals>
+    void mutate(Real probability, int F_T[])
     {
-        Real p = static_cast<Real>(std::rand())/RAND_MAX;
-        if (p <= probability)
+        Real p = 0.0;
+        for (int i=0;i<this->size();i++)
         {
-            return true;
+            p = static_cast<Real>(std::rand())/RAND_MAX;
+            if (p <= probability)
+            {
+
+            }
         }
-        return false;
     }
 };
 
@@ -139,7 +142,7 @@ class chromosome:private std::vector<gene<F>>
 };
 
 
-template<int N_units, typename Unit, typename Real=double>
+template<int N_units, typename Unit, int N_functions, int N_terminals, typename Real=double>
 struct gene_experssion_program
 {
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
@@ -155,6 +158,7 @@ struct gene_experssion_program
             Unit __units_front[N_units];
             Unit __units_back[N_units];
             Real fitnesses[N_units];
+            int F_T[N_functions+N_terminals];
             
             Local()
             {
@@ -222,7 +226,7 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 
 int main(int argc, const char*argv[])
 {
-    auto GEP = gene_experssion_program<100, chromosome<>>();
+    auto GEP = gene_experssion_program<100, chromosome<>, 10, 10>();
 	return 0;
 }
 
