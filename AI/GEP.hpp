@@ -1,5 +1,5 @@
 #include <memory>
-#include <vector>
+#include <array>
 #include <queue>
 #include <cmath>
 #include <random>
@@ -38,6 +38,11 @@
 //	};
 //}
 
+template<int N_maxops, typename DNA_encode=int> struct with_eval;
+template<typename DNA_encode>struct with_eval<0, DNA_encode>
+{
+    std::function<void(DNA_encode)> lambda_eval;
+};
 
 template<
     int N_units,
@@ -47,14 +52,15 @@ template<
     int N_functions,
     int N_terminals,
     typename Real=double,
-    typename F_encode=int
+    typename DNA_encode=int
 >
 struct gene_experssion_program
 {
     class node;
+    typedef std::shared_ptr<node> node_ptr;
     struct with_function
     {
-        F_encode f;
+        DNA_encode f;
         bool is_terminal()
         {
             return f < 0;
@@ -68,15 +74,14 @@ struct gene_experssion_program
     struct DNA:public with_function
     {
         DNA(){ this->f = 0; }
-        DNA(const node&n) { this->f = n->f; }
-        DNA(const F_encode f) { this->f = f; }
+        DNA(const node&n):DNA(n->f) {}
+        DNA(const DNA_encode f) { this->f = f; }
     };
     struct gene
     {
         static const int N_tails = N_headers*(N_maxops-1)+1;
         static const int N_DNAs = N_headers+N_tails;
         DNA DNAs[N_DNAs];
-        typedef std::shared_ptr<node> node_ptr;
         
         node_ptr to_tree()
         {
@@ -104,6 +109,12 @@ struct gene_experssion_program
             return T;
         }
     public:
+        Real eval(gene_experssion_program&GEP)
+        {
+            node_ptr root = to_tree();
+            return root->eval(GEP);
+        }
+        
         void evolve_mutate(Real probability, int F_T[])
         {
             Real p = 0.0;
@@ -207,6 +218,13 @@ struct gene_experssion_program
     class chromosome
     {
         gene genes[N_genes];
+        Real eval(gene_experssion_program&GEP)
+        {
+            Real result = 0.0;
+            for(auto&gene:genes)
+                result += gene.eval(GEP);
+            return result;
+        }
         void evolve_mutate(Real probability, int F_T[])
         {
             for(auto&g:genes)
@@ -245,7 +263,7 @@ struct gene_experssion_program
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nCrossOver = std::rand()%(N_headers+N_tails);
+                int nCrossOver = std::rand()%(gene::N_headers+gene::N_tails);
                 std::swap(genes[nCrossOver], another.genes[nCrossOver]);
             }
         }
@@ -254,13 +272,12 @@ struct gene_experssion_program
     class node:public with_function
     {
         std::weak_ptr<node> parent;
-        std::vector<std::shared_ptr<node>> children;
-        
+        std::array<node_ptr, N_maxops> children;
     public:
-        node(const DNA&n) { this->f = n->f; }
-        node(const F_encode f) { this->f = f; }
+        node(const DNA&n):node(n->f) {}
+        node(const DNA_encode f) { this->f = f; }
         
-        gene to_k_expression()
+        inline gene to_k_expression()
         {
             std::queue<node*> Q;
             gene K;
@@ -277,10 +294,20 @@ struct gene_experssion_program
             
             return K;
         }
+        
+        inline Real eval(gene_experssion_program&GEP)
+        {
+            std::array<Real, N_maxops> valuesOfChildren;
+            for(auto&child:children)
+                valuesOfChildren = child->eval(GEP);
+
+            return GEP.lambda_fitness_eval(this->f, valuesOfChildren);
+        }
     };
     
     typedef typename std::conditional<1 == N_genes, gene, chromosome>::type Unit;
-    
+
+    std::function<Real(const DNA_encode, std::array<Real, N_maxops>)> lambda_fitness_eval;
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     std::function<void()> inner_lambda_fitness_standard; // 标准适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
