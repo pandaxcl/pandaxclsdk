@@ -178,12 +178,29 @@ struct gene_experssion_program
         
         void evolve_single_crossover(Real probability, gene&another)
         {
-            
+            Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
+            if (p <= probability)
+            {
+                int nCrossOver = std::rand()%(N_headers+N_tails);
+                for (int i=nCrossOver; i<N_headers+N_tails; i++)
+                {
+                    std::swap(DNAs[i], another.DNAs[i]);
+                }
+            }
         }
         
         void evolve_double_crossover(Real probability, gene&another)
         {
-            
+            Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
+            if (p <= probability)
+            {
+                int nCrossOver = std::rand()%(N_headers+N_tails);
+                int nLength = std::rand()%(N_headers+N_tails);
+                for (int i=nCrossOver; i<nCrossOver+nLength && i<N_headers+N_tails; i++)
+                {
+                    std::swap(DNAs[i], another.DNAs[i]);
+                }
+            }
         }
     };
     
@@ -202,26 +219,35 @@ struct gene_experssion_program
         }
         void evolve_insert_string(Real probability)// 插串
         {
-            
+            for(auto&g:genes)
+                g.evolve_insert_string(probability);
         }
         void evolve_root_insert_string(Real probability)// 根插串
         {
-            
+            for(auto&g:genes)
+                g.evolve_root_insert_string(probability);
         }
         
         void evolve_single_crossover(Real probability, chromosome&another)
         {
-            
+            for(int i=0; i< N_genes; i++)
+                genes[i].evolve_single_crossover(probability, another.genes[i]);
         }
         
         void evolve_double_crossover(Real probability, chromosome&another)
         {
-            
+            for(int i=0; i< N_genes; i++)
+                genes[i].evolve_double_crossover(probability, another.genes[i]);
         }
         
         void evolve_gene_crossover(Real probability, chromosome&another)
         {
-            
+            Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
+            if (p <= probability)
+            {
+                int nCrossOver = std::rand()%(N_headers+N_tails);
+                std::swap(genes[nCrossOver], another.genes[nCrossOver]);
+            }
         }
     };
     
