@@ -37,12 +37,6 @@
 //	};
 //}
 
-template<int N_maxops, typename DNA_encode=int> struct with_eval;
-template<typename DNA_encode>struct with_eval<0, DNA_encode>
-{
-    std::function<void(DNA_encode)> lambda_eval;
-};
-
 template<
     int N_units,
     int N_genes,
@@ -84,7 +78,7 @@ struct gene_experssion_program
         static const int N_DNAs = N_headers+N_tails;
         DNA DNAs[N_DNAs];
         
-        node_ptr to_tree()
+        node_ptr to_tree(gene_experssion_program&GEP)
         {
             auto K = this->DNAs;
             std::queue<node_ptr> Q;
@@ -95,10 +89,10 @@ struct gene_experssion_program
             while(!Q.empty())
             {
                 const auto&n = Q.front(); Q.pop();
-                if(n->is_terminal())
+                if(n->is_terminal(GEP))
                     continue;
                 
-                size_t a = n->arg_count();
+                size_t a = n->arg_count(GEP);
                 for(size_t i=0;i<a;i++)
                 {
                     auto m = node_ptr(new node(K[p]));
@@ -112,7 +106,7 @@ struct gene_experssion_program
     public:
         Real eval(gene_experssion_program&GEP)
         {
-            node_ptr root = to_tree();
+            node_ptr root = to_tree(GEP);
             return root->eval(GEP);
         }
         
@@ -310,7 +304,7 @@ struct gene_experssion_program
             for(int i=0; i<this->size_of_children(); i++)
                 valuesOfChildren[i] = children[i]->eval(GEP);
 
-            return GEP.lambda_eval(this->f, valuesOfChildren, this->size_of_children());
+            return GEP.lambda_eval(this->f, this->size_of_children(), valuesOfChildren);
         }
     };
     
@@ -318,7 +312,7 @@ struct gene_experssion_program
 
     std::function<bool(DNA_encode)> lambda_is_terminal;
     std::function<int(DNA_encode)> lambda_arg_count;
-    std::function<Real(DNA_encode, Real argv[], size_t argc)> lambda_eval;// 表达式计算函数
+    std::function<Real(DNA_encode, int argc, Real argv[])> lambda_eval;// 表达式计算函数
     
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     
@@ -410,7 +404,7 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 ***************************************************/
 
 #if TEST_WITH_MAIN_FOR_GEP_HPP
-
+#include <map>
 int main(int argc, const char*argv[])
 {
     typedef gene_experssion_program<
@@ -427,10 +421,27 @@ int main(int argc, const char*argv[])
     typedef GEP_t::DNA_encode DNA_encode;
     typedef GEP_t::Unit Unit;
     
-    GEP.lambda_arg_count = [](DNA_encode){return 2;};
-    GEP.lambda_is_terminal = [](DNA_encode){return false;};
+    
+    std::map<DNA_encode, int> toIndex;
+    struct{
+        unsigned char token;
+        unsigned int argc;
+        std::function<Real(int argc, Real argv[])> eval;
+        std::function<void()> insert_into_index;
+    } ops[] = {
+        {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}, [&toIndex](){toIndex['+']=0;}},
+        {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}, [&toIndex](){toIndex['-']=1;}},
+        {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}, [&toIndex](){toIndex['*']=2;}},
+        {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}, [&toIndex](){toIndex['/']=3;}},
+    };
+    
+    for (auto&op:ops) op.insert_into_index();
+    
+    
+    GEP.lambda_arg_count = [&toIndex,ops](DNA_encode DNA){return ops[toIndex[DNA]].argc;};
+    GEP.lambda_is_terminal = [&toIndex,ops](DNA_encode DNA){return 0 == ops[toIndex[DNA]].argc;};
     GEP.lambda_fitness = [](const Unit&unit)->Real{ return 0.0; };
-    GEP.lambda_eval = [](DNA_encode, Real argv[], size_t argc){ return 0.0; };
+    GEP.lambda_eval = [&toIndex,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[toIndex[DNA]].eval(argc, argv); };
     
     GEP_t::gene g;
     
