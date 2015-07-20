@@ -1,5 +1,4 @@
 #include <memory>
-#include <array>
 #include <queue>
 #include <cmath>
 #include <random>
@@ -85,15 +84,15 @@ struct gene_experssion_program
         
         node_ptr to_tree()
         {
-            const gene&K = *this;
+            auto K = this->DNAs;
             std::queue<node_ptr> Q;
             size_t p = 0;
             auto T = node_ptr(new node(K[p]));
             p++;
-            Q.push_back(T);
+            Q.push(T);
             while(!Q.empty())
             {
-                auto n = Q.top(); Q.pop_front();
+                const auto&n = Q.front(); Q.pop();
                 if(n->is_terminal())
                     continue;
                 
@@ -101,9 +100,9 @@ struct gene_experssion_program
                 for(size_t i=0;i<a;i++)
                 {
                     auto m = node_ptr(new node(K[p]));
-                    n.children.push_back(m);
+                    n->add_children(m);
                     p++;
-                    Q.push_back(m);
+                    Q.push(m);
                 }
             }
             return T;
@@ -163,7 +162,7 @@ struct gene_experssion_program
                 {
                     // 01234 56 7
                     // 12345 67 8
-                    // nStart = 2
+                    // nStart = 5
                     // nLength = 2
                     // nInsert = 3
                     
@@ -272,9 +271,17 @@ struct gene_experssion_program
     class node:public with_function
     {
         std::weak_ptr<node> parent;
-        std::array<node_ptr, N_maxops> children;
+        //std::array<node_ptr, N_maxops> children;
+        size_t _size = 0;
+        node_ptr children[N_maxops];
     public:
-        node(const DNA&n):node(n->f) {}
+        size_t size_of_children() { return this->_size; }
+        void add_children(node_ptr&ptr)
+        {
+            children[_size] = ptr;
+            _size++;
+        }
+        node(const DNA&n):node(n.f) {}
         node(const DNA_encode f) { this->f = f; }
         
         inline gene to_k_expression()
@@ -297,18 +304,18 @@ struct gene_experssion_program
         
         inline Real eval(gene_experssion_program&GEP)
         {
-            std::array<Real, N_maxops> valuesOfChildren;
-            for(auto&child:children)
-                valuesOfChildren = child->eval(GEP);
+            Real valuesOfChildren[N_maxops];
+            for(int i=0; i<this->size_of_children(); i++)
+                valuesOfChildren[i] = children[i]->eval(GEP);
 
-            return GEP.lambda_fitness_eval(this->f, valuesOfChildren);
+            return GEP.lambda_fitness_eval(this->f, valuesOfChildren, this->size_of_children());
         }
     };
     
     typedef typename std::conditional<1 == N_genes, gene, chromosome>::type Unit;
 
-    std::function<Real(const DNA_encode, std::array<Real, N_maxops>)> lambda_fitness_eval;
-    std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
+    std::function<Real(const DNA_encode, Real argv[], size_t argc)> lambda_fitness_eval;// 适应度计算函数
+    //std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     std::function<void()> inner_lambda_fitness_standard; // 标准适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     std::function<void(Real probability)> inner_lambda_mutation_standard;// 标准变异过程
@@ -341,7 +348,8 @@ struct gene_experssion_program
         {
             for(int i = 0; i<N_units; i++)
             {
-                local->fitnesses[i] = this->lambda_fitness(local->units[i]);
+                //local->fitnesses[i] = this->lambda_fitness(local->units[i]);
+                local->fitnesses[i] = local->units[i].eval(*this);
             }
         };
         
@@ -398,14 +406,17 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 
 int main(int argc, const char*argv[])
 {
-    auto GEP = gene_experssion_program<
+    typedef gene_experssion_program<
     100/*int N_units*/,
     1/*int N_genes*/,
     8/*int N_headers*/,
     2/*int N_maxops*/,
     4/*int N_functions*/,
-    6/*int N_terminals*/>();
+    6/*int N_terminals*/>GEP_t;
     
+    auto GEP = GEP_t();
+    
+    GEP_t::gene g;
     
 	return 0;
 }
