@@ -50,23 +50,25 @@ template<
     int N_maxops,
     int N_functions,
     int N_terminals,
-    typename Real=double,
-    typename DNA_encode=int
+    typename T_Real=double,
+    typename T_DNA_encode=int
 >
 struct gene_experssion_program
 {
+    typedef T_Real Real;
+    typedef T_DNA_encode DNA_encode;
     class node;
     typedef std::shared_ptr<node> node_ptr;
     struct with_function
     {
         DNA_encode f;
-        bool is_terminal()
+        inline bool is_terminal(gene_experssion_program&GEP)
         {
-            return f < 0;
+            return GEP.lambda_is_terminal(f);
         }
-        size_t args_count()
+        inline size_t arg_count(gene_experssion_program&GEP)
         {
-            return 2;
+            return GEP.lambda_arg_count(f);
         }
     };
     
@@ -96,11 +98,11 @@ struct gene_experssion_program
                 if(n->is_terminal())
                     continue;
                 
-                size_t a = n->args_count();
+                size_t a = n->arg_count();
                 for(size_t i=0;i<a;i++)
                 {
                     auto m = node_ptr(new node(K[p]));
-                    n->add_children(m);
+                    n->add_children(m);m->parent = n;
                     p++;
                     Q.push(m);
                 }
@@ -308,14 +310,19 @@ struct gene_experssion_program
             for(int i=0; i<this->size_of_children(); i++)
                 valuesOfChildren[i] = children[i]->eval(GEP);
 
-            return GEP.lambda_fitness_eval(this->f, valuesOfChildren, this->size_of_children());
+            return GEP.lambda_eval(this->f, valuesOfChildren, this->size_of_children());
         }
     };
     
     typedef typename std::conditional<1 == N_genes, gene, chromosome>::type Unit;
 
-    std::function<Real(const DNA_encode, Real argv[], size_t argc)> lambda_fitness_eval;// 适应度计算函数
-    //std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
+    std::function<bool(DNA_encode)> lambda_is_terminal;
+    std::function<int(DNA_encode)> lambda_arg_count;
+    std::function<Real(DNA_encode, Real argv[], size_t argc)> lambda_eval;// 表达式计算函数
+    
+    std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
+    
+    
     std::function<void()> inner_lambda_fitness_standard; // 标准适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     std::function<void(Real probability)> inner_lambda_mutation_standard;// 标准变异过程
@@ -348,8 +355,8 @@ struct gene_experssion_program
         {
             for(int i = 0; i<N_units; i++)
             {
-                //local->fitnesses[i] = this->lambda_fitness(local->units[i]);
-                local->fitnesses[i] = local->units[i].eval(*this);
+                local->fitnesses[i] = this->lambda_fitness(local->units[i]);
+                //local->fitnesses[i] = local->units[i].eval(*this);
             }
         };
         
@@ -415,6 +422,15 @@ int main(int argc, const char*argv[])
     6/*int N_terminals*/>GEP_t;
     
     auto GEP = GEP_t();
+    
+    typedef GEP_t::Real Real;
+    typedef GEP_t::DNA_encode DNA_encode;
+    typedef GEP_t::Unit Unit;
+    
+    GEP.lambda_arg_count = [](DNA_encode){return 2;};
+    GEP.lambda_is_terminal = [](DNA_encode){return false;};
+    GEP.lambda_fitness = [](const Unit&unit)->Real{ return 0.0; };
+    GEP.lambda_eval = [](DNA_encode, Real argv[], size_t argc){ return 0.0; };
     
     GEP_t::gene g;
     
