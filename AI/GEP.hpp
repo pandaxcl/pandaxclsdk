@@ -408,12 +408,12 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 int main(int argc, const char*argv[])
 {
     typedef gene_experssion_program<
-    100/*int N_units*/,
-    1/*int N_genes*/,
-    8/*int N_headers*/,
-    2/*int N_maxops*/,
-    4/*int N_functions*/,
-    6/*int N_terminals*/>GEP_t;
+    /*int N_units    */100,
+    /*int N_genes    */1,
+    /*int N_headers  */8,
+    /*int N_maxops   */2,
+    /*int N_functions*/4,
+    /*int N_terminals*/6>GEP_t;
     
     auto GEP = GEP_t();
     
@@ -422,26 +422,26 @@ int main(int argc, const char*argv[])
     typedef GEP_t::Unit Unit;
     
     
-    std::map<DNA_encode, int> toIndex;
     struct{
         unsigned char token;
         unsigned int argc;
         std::function<Real(int argc, Real argv[])> eval;
-        std::function<void()> insert_into_index;
     } ops[] = {
-        {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}, [&toIndex](){toIndex['+']=0;}},
-        {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}, [&toIndex](){toIndex['-']=1;}},
-        {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}, [&toIndex](){toIndex['*']=2;}},
-        {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}, [&toIndex](){toIndex['/']=3;}},
+        { 0 , 0, nullptr},
+        {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}},
+        {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
+        {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
+        {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}},
     };
     
-    for (auto&op:ops) op.insert_into_index();
+    std::map<DNA_encode, int> I;
+    {int i=0;for (auto&op:ops) {I[op.token] = i;i++;}}
     
     
-    GEP.lambda_arg_count = [&toIndex,ops](DNA_encode DNA){return ops[toIndex[DNA]].argc;};
-    GEP.lambda_is_terminal = [&toIndex,ops](DNA_encode DNA){return 0 == ops[toIndex[DNA]].argc;};
+    GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
+    GEP.lambda_is_terminal = [&I,ops](DNA_encode DNA){return 0 == ops[I[DNA]].argc && 0 != ops[I[DNA]].token;};
     GEP.lambda_fitness = [](const Unit&unit)->Real{ return 0.0; };
-    GEP.lambda_eval = [&toIndex,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[toIndex[DNA]].eval(argc, argv); };
+    GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
     
     GEP_t::gene g;
     
