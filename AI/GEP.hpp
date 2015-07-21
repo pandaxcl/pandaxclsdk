@@ -42,10 +42,11 @@ template<
     int N_genes,
     int N_headers,
     int N_maxops,
-    int N_functions,
-    int N_terminals,
-    typename T_Real=double,
-    typename T_DNA_encode=int
+//    int N_functions,
+//    int N_terminals,
+    typename T_DNA_encode=int,
+    typename T_Real=double
+
 >
 struct gene_experssion_program
 {
@@ -72,10 +73,14 @@ struct gene_experssion_program
         DNA(const node&n):DNA(n->f) {}
         DNA(const DNA_encode f) { this->f = f; }
     };
-    struct gene
+    class gene
     {
-        static const int N_tails = N_headers*(N_maxops-1)+1;
-        static const int N_DNAs = N_headers+N_tails;
+        enum
+        {
+            N_tails = N_headers*(N_maxops-1)+1,
+            N_DNAs = N_headers+N_tails,
+        };
+
         DNA DNAs[N_DNAs];
         
         node_ptr to_tree(gene_experssion_program&GEP)
@@ -104,13 +109,41 @@ struct gene_experssion_program
             return T;
         }
     public:
+        void dump(std::ostream&os, bool moreReadable=false)
+        {
+            if(moreReadable)
+            {
+                for(int i=0;i<N_DNAs;i++)
+                    os << i%10;
+                os << std::endl;
+            }
+            for(auto&DNA:DNAs)
+                os << DNA.f;
+            os << std::endl;
+        }
+        void random_initialize(int F_count, int T_count, DNA_encode F_T[])
+        {
+            for (int i=0; i<N_headers; i++)// 头部可以是任何符号
+                DNAs[i] = F_T[std::rand()%(F_count+T_count)];
+            
+            for (int i=N_headers; i<N_DNAs; i++)// 尾部只能是终结符
+            {
+                if (1 == T_count)
+                    DNAs[i] = F_T[F_count];
+                else if(T_count > 1)
+                    DNAs[i] = F_T[F_count+std::rand()%T_count];
+                else
+                    assert(false);
+            }
+            
+        }
         Real eval(gene_experssion_program&GEP)
         {
             node_ptr root = to_tree(GEP);
             return root->eval(GEP);
         }
         
-        void evolve_mutate(Real probability, int F_T[])
+        void evolve_mutate(Real probability, int F_count, int T_count, DNA_encode F_T[])
         {
             Real p = 0.0;
             for (int i=0;i<N_DNAs;i++)
@@ -119,9 +152,9 @@ struct gene_experssion_program
                 if (p <= probability)
                 {
                     if (i<N_headers)// 可以选择所有的符号
-                        DNAs[i] = F_T[std::rand()%(N_functions+N_terminals)];
+                        DNAs[i] = F_T[std::rand()%(F_count+T_count)];
                     else// 只能选择终结符
-                        DNAs[i] = F_T[N_functions+std::rand()%N_terminals];
+                        DNAs[i] = F_T[F_count+std::rand()%T_count];
                 }
             }
         }
@@ -213,6 +246,11 @@ struct gene_experssion_program
     class chromosome
     {
         gene genes[N_genes];
+        void random_initialize(int F_count, int T_count, DNA_encode F_T[])
+        {
+            for(auto&gene:genes)
+                gene.random_initialize(F_count, T_count, F_T);
+        }
         Real eval(gene_experssion_program&GEP)
         {
             Real result = 0.0;
@@ -313,13 +351,14 @@ struct gene_experssion_program
     std::function<bool(DNA_encode)> lambda_is_terminal;
     std::function<int(DNA_encode)> lambda_arg_count;
     std::function<Real(DNA_encode, int argc, Real argv[])> lambda_eval;// 表达式计算函数
+//    std::function<DNA_encode(int index)> lambda_operator_index_to_DNA_encode;// 初始化种群时候需要的一个映射函数
     
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     
     
     std::function<void()> inner_lambda_fitness_standard; // 标准适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
-    std::function<void(Real probability)> inner_lambda_mutation_standard;// 标准变异过程
+    std::function<void(Real probability, int F_count, int T_count, DNA_encode F_T[])> inner_lambda_mutation_standard;// 标准变异过程
     
     gene_experssion_program()
     {
@@ -329,7 +368,7 @@ struct gene_experssion_program
             Unit __units_front[N_units];
             Unit __units_back[N_units];
             Real fitnesses[N_units];
-            int F_T[N_functions+N_terminals];
+            //int F_T[N_functions+N_terminals];
             
             Local()
             {
@@ -388,12 +427,12 @@ struct gene_experssion_program
             local->units = nextGeneration;
         };
         
-        inner_lambda_mutation_standard = [local](Real probability)
+        inner_lambda_mutation_standard = [local](Real probability, int F_count, int T_count, DNA_encode F_T[])
         {
             for(int i=0; i<N_units; i++)
             {
                 Unit&unit = local->units[i];
-                unit.evolve_mutate(probability, local->F_T);
+                unit.evolve_mutate(probability, F_count, T_count, F_T);
             }
         };
     }
@@ -405,6 +444,7 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 
 #if TEST_WITH_MAIN_FOR_GEP_HPP
 #include <map>
+#include <iostream>
 int main(int argc, const char*argv[])
 {
     typedef gene_experssion_program<
@@ -412,8 +452,8 @@ int main(int argc, const char*argv[])
     /*int N_genes    */1,
     /*int N_headers  */8,
     /*int N_maxops   */2,
-    /*int N_functions*/4,
-    /*int N_terminals*/6>GEP_t;
+    /*typename T_DNA_encode*/ unsigned char>GEP_t;
+    
     
     auto GEP = GEP_t();
     
@@ -422,29 +462,52 @@ int main(int argc, const char*argv[])
     typedef GEP_t::Unit Unit;
     
     
-    struct{
-        unsigned char token;
-        unsigned int argc;
+    struct OP_t{
+        DNA_encode DNA;
+        int argc;
         std::function<Real(int argc, Real argv[])> eval;
     } ops[] = {
-        { 0 , 0, nullptr},
+        //{ 0 , 0, nullptr},
         {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}},
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
         {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}},
+        {'a', 0, nullptr},
     };
     
+    const int N_ops = sizeof(ops)/sizeof(OP_t);
+    
     std::map<DNA_encode, int> I;
-    {int i=0;for (auto&op:ops) {I[op.token] = i;i++;}}
+    for (int i=0; i<N_ops; i++) {I[ops[i].DNA] = i;}
+    
+    auto is_terminal = [&I,ops](DNA_encode DNA){return 0 == ops[I[DNA]].argc && 0 != ops[I[DNA]].DNA;};
+    auto is_function = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc  > 0 && 0 != ops[I[DNA]].DNA;};
     
     
     GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
-    GEP.lambda_is_terminal = [&I,ops](DNA_encode DNA){return 0 == ops[I[DNA]].argc && 0 != ops[I[DNA]].token;};
+    GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
     GEP.lambda_fitness = [](const Unit&unit)->Real{ return 0.0; };
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
+
     
     GEP_t::gene g;
-    
+    {
+        DNA_encode F_T[N_ops];
+        int F_count = 0;
+        int T_count = 0;
+        for (int i=0; i<N_ops; i++)
+        {
+            if (is_function(ops[i].DNA))
+                F_count ++;
+            else if (is_terminal(ops[i].DNA))
+                T_count ++;
+            
+            F_T[i] = ops[i].DNA;// 这里假设ops里面已经按照先Function后Terminal的顺序排好序了；）
+        }
+        g.random_initialize(F_count, T_count, F_T);
+    }
+    g.dump(std::cout, true);
+    g.dump(std::cout);
 	return 0;
 }
 
