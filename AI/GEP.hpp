@@ -304,6 +304,7 @@ struct gene_experssion_program
     
     class node:public with_function
     {
+        friend gene;
         std::weak_ptr<node> parent;
         //std::array<node_ptr, N_maxops> children;
         size_t _size = 0;
@@ -461,7 +462,7 @@ int main(int argc, const char*argv[])
     typedef GEP_t::DNA_encode DNA_encode;
     typedef GEP_t::Unit Unit;
     
-    
+    Real variables[1] = {0.0};
     struct OP_t{
         DNA_encode DNA;
         int argc;
@@ -472,7 +473,7 @@ int main(int argc, const char*argv[])
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
         {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}},
-        {'a', 0, nullptr},
+        {'a', 0, [variables](int argc, Real argv[]){return variables[0];}},
     };
     
     const int N_ops = sizeof(ops)/sizeof(OP_t);
@@ -508,6 +509,8 @@ int main(int argc, const char*argv[])
     }
     g.dump(std::cout, true);
     g.dump(std::cout);
+    
+    std::cout<<"g.eval(GEP) = "<<g.eval(GEP)<<std::endl;
 	return 0;
 }
 
