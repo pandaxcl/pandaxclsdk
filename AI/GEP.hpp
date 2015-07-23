@@ -3,6 +3,7 @@
 #include <cmath>
 #include <random>
 #include <cassert>
+#include <string>
 //namespace Private
 //{
 //	template<typename F> struct node_impl_base
@@ -108,7 +109,13 @@ struct gene_experssion_program
             }
             return T;
         }
-
+        std::basic_string<DNA_encode> to_string()
+        {
+            std::basic_string<DNA_encode> str;
+            for(auto&DNA:DNAs)
+                str.push_back(DNA.f);
+            return str;
+        }
         void dump(std::ostream&os, bool moreReadable=false)
         {
             if(moreReadable)
@@ -460,7 +467,7 @@ int main(int argc, const char*argv[])
     /*int N_genes    */1,
     /*int N_headers  */8,
     /*int N_maxops   */2,
-    /*typename T_DNA_encode*/ unsigned char>GEP_t;
+    /*typename T_DNA_encode*/char>GEP_t;
     
     
     auto GEP = GEP_t();
@@ -539,6 +546,9 @@ int main(int argc, const char*argv[])
         g1.evolve_single_crossover(2.0, g2);
         g1.dump(std::cout, true);
         g2.dump(std::cout, false);
+        
+        std::cout<< g1.to_string() <<std::endl;
+        std::cout<< g2.to_string() <<std::endl;
     }
 	return 0;
 }
