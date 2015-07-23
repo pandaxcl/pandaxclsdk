@@ -109,6 +109,12 @@ struct gene_experssion_program
             }
             return T;
         }
+        void from_string(const std::basic_string<DNA_encode>&str)
+        {
+            assert(str.size() == N_DNAs);
+            for(int i=0; i<N_DNAs; i++)
+                DNAs[i] = str[i];
+        }
         std::basic_string<DNA_encode> to_string()
         {
             std::basic_string<DNA_encode> str;
