@@ -82,7 +82,7 @@ struct gene_experssion_program
         };
 
         DNA DNAs[N_DNAs];
-        
+    public:
         node_ptr to_tree(gene_experssion_program&GEP)
         {
             auto K = this->DNAs;
@@ -108,7 +108,7 @@ struct gene_experssion_program
             }
             return T;
         }
-    public:
+
         void dump(std::ostream&os, bool moreReadable=false)
         {
             if(moreReadable)
@@ -306,7 +306,6 @@ struct gene_experssion_program
     {
         friend gene;
         std::weak_ptr<node> parent;
-        //std::array<node_ptr, N_maxops> children;
         size_t _size = 0;
         node_ptr children[N_maxops];
     public:
@@ -315,6 +314,14 @@ struct gene_experssion_program
         {
             children[_size] = ptr;
             _size++;
+        }
+        void dump(std::ostream&os, int level)
+        {
+            for(int i=0; i<level; i++)
+                os<<"| ";
+            os << this->f <<std::endl;
+            for(int i=0; i< size_of_children(); i++)
+                children[i]->dump(os, level+1);
         }
         node(const DNA&n):node(n.f) {}
         node(const DNA_encode f) { this->f = f; }
@@ -509,7 +516,8 @@ int main(int argc, const char*argv[])
     }
     g.dump(std::cout, true);
     g.dump(std::cout);
-    
+    auto root = g.to_tree(GEP);
+    root->dump(std::cout, 0);
     std::cout<<"g.eval(GEP) = "<<g.eval(GEP)<<std::endl;
 	return 0;
 }
