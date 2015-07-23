@@ -229,9 +229,7 @@ struct gene_experssion_program
             {
                 int nCrossOver = std::rand()%(N_DNAs-1)+1;//单点交叉，交叉点不能是第一个
                 for (int i=nCrossOver; i<N_DNAs; i++)
-                {
                     std::swap(DNAs[i], another.DNAs[i]);
-                }
             }
         }
         
@@ -240,12 +238,10 @@ struct gene_experssion_program
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nCrossOver = std::rand()%(N_headers+N_tails);
-                int nLength = std::rand()%(N_headers+N_tails);
-                for (int i=nCrossOver; i<nCrossOver+nLength && i<N_headers+N_tails; i++)
-                {
+                int nCrossOver = std::rand()%(N_DNAs-1-1)+1;//两点交叉，交叉点不能是第一个和最后一个
+                int nLength = std::rand()%(N_DNAs);
+                for (int i=nCrossOver; i<nCrossOver+nLength && i<N_DNAs; i++)
                     std::swap(DNAs[i], another.DNAs[i]);
-                }
             }
         }
     };
@@ -549,6 +545,14 @@ int main(int argc, const char*argv[])
         
         std::cout<< g1.to_string() <<std::endl;
         std::cout<< g2.to_string() <<std::endl;
+    }
+    
+    {
+        g1.dump(std::cout, true);
+        g2.dump(std::cout, false);
+        g1.evolve_double_crossover(2.0, g2);
+        g1.dump(std::cout, true);
+        g2.dump(std::cout, false);
     }
 	return 0;
 }
