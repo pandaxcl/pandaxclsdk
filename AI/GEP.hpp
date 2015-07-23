@@ -350,7 +350,7 @@ struct gene_experssion_program
             for(int i=0; i<this->size_of_children(); i++)
                 valuesOfChildren[i] = children[i]->eval(GEP);
 
-            return GEP.lambda_eval(this->f, this->size_of_children(), valuesOfChildren);
+            return GEP.lambda_eval(this->f, static_cast<int>(this->size_of_children()), valuesOfChildren);
         }
     };
     
@@ -390,14 +390,12 @@ struct gene_experssion_program
         };
         
         auto local = std::shared_ptr<Local>(new Local());
-        std::srand((unsigned int)time(nullptr));
         
         inner_lambda_fitness_standard = [local,this]()
         {
             for(int i = 0; i<N_units; i++)
             {
                 local->fitnesses[i] = this->lambda_fitness(local->units[i]);
-                //local->fitnesses[i] = local->units[i].eval(*this);
             }
         };
         
@@ -455,6 +453,8 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 #include <iostream>
 int main(int argc, const char*argv[])
 {
+    //std::srand((unsigned int)time(nullptr));
+    std::srand(199999);
     typedef gene_experssion_program<
     /*int N_units    */100,
     /*int N_genes    */1,
@@ -469,7 +469,9 @@ int main(int argc, const char*argv[])
     typedef GEP_t::DNA_encode DNA_encode;
     typedef GEP_t::Unit Unit;
     
+    const int a = 0;
     Real variables[1] = {0.0};
+    
     struct OP_t{
         DNA_encode DNA;
         int argc;
@@ -480,7 +482,7 @@ int main(int argc, const char*argv[])
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
         {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}},
-        {'a', 0, [variables](int argc, Real argv[]){return variables[0];}},
+        {'a', 0, [&variables](int argc, Real argv[]){return variables[a];}},
     };
     
     const int N_ops = sizeof(ops)/sizeof(OP_t);
@@ -518,6 +520,7 @@ int main(int argc, const char*argv[])
     g.dump(std::cout);
     auto root = g.to_tree(GEP);
     root->dump(std::cout, 0);
+    variables[a] = 1.5;
     std::cout<<"g.eval(GEP) = "<<g.eval(GEP)<<std::endl;
 	return 0;
 }
