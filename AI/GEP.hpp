@@ -220,8 +220,8 @@ struct gene_experssion_program
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nCrossOver = std::rand()%(N_headers+N_tails);
-                for (int i=nCrossOver; i<N_headers+N_tails; i++)
+                int nCrossOver = std::rand()%(N_DNAs-1)+1;//单点交叉，交叉点不能是第一个
+                for (int i=nCrossOver; i<N_DNAs; i++)
                 {
                     std::swap(DNAs[i], another.DNAs[i]);
                 }
@@ -500,7 +500,7 @@ int main(int argc, const char*argv[])
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
 
     
-    GEP_t::gene g;
+    GEP_t::gene g1, g2;
     {
         DNA_encode F_T[N_ops];
         int F_count = 0;
@@ -514,14 +514,32 @@ int main(int argc, const char*argv[])
             
             F_T[i] = ops[i].DNA;// 这里假设ops里面已经按照先Function后Terminal的顺序排好序了；）
         }
-        g.random_initialize(F_count, T_count, F_T);
+        g1.random_initialize(F_count, T_count, F_T);
+        g2.random_initialize(F_count, T_count, F_T);
     }
-    g.dump(std::cout, true);
-    g.dump(std::cout);
-    auto root = g.to_tree(GEP);
-    root->dump(std::cout, 0);
-    variables[a] = 1.5;
-    std::cout<<"g.eval(GEP) = "<<g.eval(GEP)<<std::endl;
+    {
+        g1.dump(std::cout, true);
+        g2.dump(std::cout);
+    }
+    {
+        auto root = g1.to_tree(GEP);
+        root->dump(std::cout, 0);
+        variables[a] = 0.5;
+        std::cout<<"g1.eval(GEP) = "<<g1.eval(GEP)<<std::endl;
+    }
+    {
+        auto root = g2.to_tree(GEP);
+        root->dump(std::cout, 0);
+        variables[a] = 0.5;
+        std::cout<<"g2.eval(GEP) = "<<g2.eval(GEP)<<std::endl;
+    }
+    {
+        g1.dump(std::cout, true);
+        g2.dump(std::cout, false);
+        g1.evolve_single_crossover(2.0, g2);
+        g1.dump(std::cout, true);
+        g2.dump(std::cout, false);
+    }
 	return 0;
 }
 
