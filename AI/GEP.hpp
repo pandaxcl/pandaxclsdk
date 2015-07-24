@@ -207,9 +207,24 @@ struct gene_experssion_program
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nStart = std::rand()%(N_headers+N_tails);
-                int nLength = std::rand()%(N_headers+N_tails-1)+1;// 至少得有1个基因，才能执行插串
+                int nStart = std::rand()%(N_DNAs-1);
+                int nLength = 0;
+                switch(N_DNAs-nStart)
+                {
+                    case 0: return;
+                    case 1: nLength = 1;
+                    case 2: nLength = std::rand()%2 + 1;// 至少得有1个基因，才能执行插串
+                    default:nLength = std::rand()%(N_DNAs-nStart-1)+1;// 至少得有1个基因，才能执行插串
+                }
                 int nInsert = std::rand()%(N_headers-1)+1; // 因为不能插到基因的第一个位置
+                
+                if (nStart == nInsert)// 被插入串的位置和插入的位置相同，意味着插入之后结果不变，所以就没有插入的必要了
+                    return;
+                
+                DNA bk_DNAs[N_DNAs];// 因为操作的是同一个序列，因此难免会重复，所以就先备份出来
+                for(int i=0; i<N_DNAs; i++)
+                    bk_DNAs[i] = DNAs[i];
+                
                 for (int i=nInsert; i<nInsert+nLength && i+nLength<N_headers; i++)// 插入位置的nLength长度的DNA后移，超出头部长度的直接丢弃
                 {
                     // 01234 56 7
@@ -218,11 +233,11 @@ struct gene_experssion_program
                     // nLength = 2
                     // nInsert = 3
                     
-                    DNAs[i+nLength] = DNAs[i];
+                    DNAs[i+nLength] = bk_DNAs[i];
                 }
-                for (int i=nInsert; i<nInsert+nLength; i++)
+                for (int i=nInsert; i<nInsert+nLength && i<N_DNAs; i++)
                 {
-                    DNAs[i] = DNAs[nStart+i-nInsert];
+                    DNAs[i] = bk_DNAs[nStart+i-nInsert];
                 }
             }
         }
@@ -574,6 +589,12 @@ int main(int argc, const char*argv[])
     {
         g1.dump(std::cout, true);
         g1.evolve_reverse(2.0);
+        g1.dump(std::cout, true);
+    }
+    
+    {
+        g1.dump(std::cout, true);
+        g1.evolve_insert_string(2.0);
         g1.dump(std::cout, true);
     }
 	return 0;
