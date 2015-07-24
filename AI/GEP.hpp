@@ -4,6 +4,7 @@
 #include <random>
 #include <cassert>
 #include <string>
+#include <algorithm>
 //namespace Private
 //{
 //	template<typename F> struct node_impl_base
@@ -177,9 +178,18 @@ struct gene_experssion_program
             if (p <= probability)
             {
                 int nStart = std::rand()%N_headers;// 倒串只作用到基因的头部
-                int nLength = std::rand()%(N_headers-nStart-2) + 2;// 至少有两个DNA，才谈得上倒串
+                int nLength = 0;
+                switch(N_headers-nStart)
+                {
+                    case 0:return;
+                    case 1:return;
+                    case 2:nLength = 2;break;
+                    case 3:nLength = std::rand()%2+2;break;
+                    default:
+                        nLength = std::rand()%(N_headers-nStart-2)+2;// 至少有两个DNA，才谈得上倒串
+                }
                 
-                for (int i=nStart; i<nStart+nLength; i++)
+                for (int i=nStart; i<nStart+nLength/2; i++)
                 {
                     // 12 345 678
                     // nStart = 2;
@@ -187,7 +197,7 @@ struct gene_experssion_program
                     // i=2, 2+3-i+1=4
                     // i=3, 2+3-i+1=3
                     // i=4, 2+3-i+1=2
-                    std::swap(DNAs[i], DNAs[nStart+nLength-i+1]);
+                    std::swap(DNAs[i], DNAs[nStart+nLength-(i-nStart)-1]);
                 }
             }
         }
@@ -559,6 +569,12 @@ int main(int argc, const char*argv[])
         g1.evolve_double_crossover(2.0, g2);
         g1.dump(std::cout, true);
         g2.dump(std::cout, false);
+    }
+    
+    {
+        g1.dump(std::cout, true);
+        g1.evolve_reverse(2.0);
+        g1.dump(std::cout, true);
     }
 	return 0;
 }
