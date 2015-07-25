@@ -201,13 +201,38 @@ struct gene_experssion_program
                 }
             }
         }
+
+        void insert_string(int nStart, int nLength, int nInsert)
+        {
+            if (nStart == nInsert)// 被插入串的位置和插入的位置相同，意味着插入之后结果不变，所以就没有插入的必要了
+                return;
+            
+            DNA bk_DNAs[N_DNAs];// 因为操作的是同一个序列，因此难免会重复，所以就先备份出来
+            for(int i=0; i<N_DNAs; i++)
+                bk_DNAs[i] = DNAs[i];
+            
+            for (int i=nInsert; i+nLength<N_headers; i++)// 插入位置的nLength长度的DNA后移，超出头部长度的直接丢弃
+            {
+                // 01234 56 7
+                // 12345 67 8
+                // nStart = 5
+                // nLength = 2
+                // nInsert = 3
+                
+                DNAs[i+nLength] = bk_DNAs[i];
+            }
+            for (int i=nInsert; i<nInsert+nLength && i<N_DNAs; i++)
+            {
+                DNAs[i] = bk_DNAs[nStart+i-nInsert];
+            }
+        }
         
         void evolve_insert_string(Real probability)// 插串
         {
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nStart = std::rand()%(N_DNAs-1);
+                int nStart = std::rand()%N_DNAs;// 选择的插串的开始点可以是任何地方
                 int nLength = 0;
                 switch(N_DNAs-nStart)
                 {
@@ -218,38 +243,35 @@ struct gene_experssion_program
                 }
                 int nInsert = std::rand()%(N_headers-1)+1; // 因为不能插到基因的第一个位置
                 
-                if (nStart == nInsert)// 被插入串的位置和插入的位置相同，意味着插入之后结果不变，所以就没有插入的必要了
-                    return;
-                
-                DNA bk_DNAs[N_DNAs];// 因为操作的是同一个序列，因此难免会重复，所以就先备份出来
-                for(int i=0; i<N_DNAs; i++)
-                    bk_DNAs[i] = DNAs[i];
-                
-                for (int i=nInsert; i<nInsert+nLength && i+nLength<N_headers; i++)// 插入位置的nLength长度的DNA后移，超出头部长度的直接丢弃
-                {
-                    // 01234 56 7
-                    // 12345 67 8
-                    // nStart = 5
-                    // nLength = 2
-                    // nInsert = 3
-                    
-                    DNAs[i+nLength] = bk_DNAs[i];
-                }
-                for (int i=nInsert; i<nInsert+nLength && i<N_DNAs; i++)
-                {
-                    DNAs[i] = bk_DNAs[nStart+i-nInsert];
-                }
+                insert_string(nStart, nLength, nInsert);
             }
         }
         
-        void evolve_root_insert_string(Real probability)// 根插串
+        void evolve_root_insert_string(Real probability, const std::function<bool(DNA_encode)>&is_function)// 根插串
         {
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nStart = std::rand()%(N_headers+N_tails);
-                int nLength = std::rand()%(N_headers+N_tails);
+                // 1. 选择的插串的开始点可以是任何地方
+                int nStart = std::rand()%N_DNAs;
+                // 2. 向后扫描发现函数才可以继续执行根插串操作
+                for(int i=nStart;i<N_headers;i++)
+                {
+                    if (is_function(DNAs[i]))
+                        break;
+                    nStart++;
+                }
+                // 3. 获取插串的长度
+                int nLength = 0;
+                switch(N_DNAs-nStart)
+                {
+                    case 0: return;
+                    case 1: nLength = 1;
+                    case 2: nLength = std::rand()%2 + 1;// 至少得有1个基因，才能执行插串
+                    default:nLength = std::rand()%(N_DNAs-nStart-1)+1;// 至少得有1个基因，才能执行插串
+                }
                 int nInsert = 0; // 根插串就是将插串插到基因的第一个位置
+                insert_string(nStart, nLength, nInsert);
             }
         }
         
@@ -391,6 +413,7 @@ struct gene_experssion_program
     typedef typename std::conditional<1 == N_genes, gene, chromosome>::type Unit;
 
     std::function<bool(DNA_encode)> lambda_is_terminal;
+    std::function<bool(DNA_encode)> lambda_is_function;
     std::function<int(DNA_encode)> lambda_arg_count;
     std::function<Real(DNA_encode, int argc, Real argv[])> lambda_eval;// 表达式计算函数
 //    std::function<DNA_encode(int index)> lambda_operator_index_to_DNA_encode;// 初始化种群时候需要的一个映射函数
@@ -530,6 +553,7 @@ int main(int argc, const char*argv[])
     
     GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
     GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
+    GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
     GEP.lambda_fitness = [](const Unit&unit)->Real{ return 0.0; };
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
 
