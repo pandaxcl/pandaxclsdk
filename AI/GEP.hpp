@@ -85,7 +85,7 @@ struct gene_experssion_program
 
         DNA DNAs[N_DNAs];
     public:
-        node_ptr to_tree(gene_experssion_program&GEP)
+        node_ptr to_tree(gene_experssion_program&GEP) const
         {
             auto K = this->DNAs;
             std::queue<node_ptr> Q;
@@ -151,7 +151,7 @@ struct gene_experssion_program
             }
             
         }
-        Real eval(gene_experssion_program&GEP)
+        Real eval(gene_experssion_program&GEP) const
         {
             node_ptr root = to_tree(GEP);
             return root->eval(GEP);
@@ -571,7 +571,21 @@ int main(int argc, const char*argv[])
     GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
     GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
     GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
-    GEP.lambda_fitness = [](const Unit&unit)->Real{ return 0.0; };
+    GEP.lambda_fitness = [&GEP,&variables](const Unit&unit)->Real
+    {
+        auto y = [](Real a){ return a*a/3 + 2*a;/* 目标方程: y = a*a/3 + 2*a */ };
+        Real sumDy2 = 0.0;
+        int nCount = 0;
+        for(Real x = -10.0; x<10.0; x += 1.0)
+        {
+            variables[a] = x;// 为了unit执行求值，需要先赋予变量值
+            Real dy = y(x) - unit.eval(GEP);
+            
+            sumDy2 += dy*dy;
+            nCount ++;
+        }
+        return sumDy2/nCount;
+    };
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
 
     {
