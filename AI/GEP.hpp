@@ -530,7 +530,6 @@ int main(int argc, const char*argv[])
         int argc;
         std::function<Real(int argc, Real argv[])> eval;
     } ops[] = {
-        //{ 0 , 0, nullptr},
         {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}},
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
@@ -546,83 +545,95 @@ int main(int argc, const char*argv[])
     auto is_terminal = [&I,ops](DNA_encode DNA){return 0 == ops[I[DNA]].argc && 0 != ops[I[DNA]].DNA;};
     auto is_function = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc  > 0 && 0 != ops[I[DNA]].DNA;};
     
+    DNA_encode F_T[N_ops];
+    int F_count = 0;
+    int T_count = 0;
     
+    {// 按照先Function后Terminal的方式进行排序重组
+        for (int i=0; i<N_ops; i++)
+        {
+            if (is_function(ops[i].DNA))
+            {
+                F_T[F_count] = ops[i].DNA;
+                F_count ++;
+            }
+        }
+        for (int i=0; i<N_ops; i++)
+        {
+            if (is_terminal(ops[i].DNA))
+            {
+                F_T[F_count+T_count] = ops[i].DNA;
+                T_count ++;
+            }
+        }
+    }
+
     GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
     GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
     GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
     GEP.lambda_fitness = [](const Unit&unit)->Real{ return 0.0; };
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
 
-    
-    GEP_t::gene g1, g2;
     {
-        DNA_encode F_T[N_ops];
-        int F_count = 0;
-        int T_count = 0;
-        for (int i=0; i<N_ops; i++)
+        GEP_t::gene g1, g2;
         {
-            if (is_function(ops[i].DNA))
-                F_count ++;
-            else if (is_terminal(ops[i].DNA))
-                T_count ++;
-            
-            F_T[i] = ops[i].DNA;// 这里假设ops里面已经按照先Function后Terminal的顺序排好序了；）
+            g1.random_initialize(F_count, T_count, F_T);
+            g2.random_initialize(F_count, T_count, F_T);
         }
-        g1.random_initialize(F_count, T_count, F_T);
-        g2.random_initialize(F_count, T_count, F_T);
-    }
-    {
-        g1.dump(std::cout, true);
-        g2.dump(std::cout);
-    }
-    {
-        auto root = g1.to_tree(GEP);
-        root->dump(std::cout, 0);
-        variables[a] = 0.5;
-        std::cout<<"g1.eval(GEP) = "<<g1.eval(GEP)<<std::endl;
-    }
-    {
-        auto root = g2.to_tree(GEP);
-        root->dump(std::cout, 0);
-        variables[a] = 0.5;
-        std::cout<<"g2.eval(GEP) = "<<g2.eval(GEP)<<std::endl;
-    }
-    {
-        g1.dump(std::cout, true);
-        g2.dump(std::cout, false);
-        g1.evolve_single_crossover(2.0, g2);
-        g1.dump(std::cout, true);
-        g2.dump(std::cout, false);
+        {
+            g1.dump(std::cout, true);
+            g2.dump(std::cout);
+        }
+        {
+            auto root = g1.to_tree(GEP);
+            root->dump(std::cout, 0);
+            variables[a] = 0.5;
+            std::cout<<"g1.eval(GEP) = "<<g1.eval(GEP)<<std::endl;
+        }
+        {
+            auto root = g2.to_tree(GEP);
+            root->dump(std::cout, 0);
+            variables[a] = 0.5;
+            std::cout<<"g2.eval(GEP) = "<<g2.eval(GEP)<<std::endl;
+        }
+        {
+            g1.dump(std::cout, true);
+            g2.dump(std::cout, false);
+            g1.evolve_single_crossover(2.0, g2);
+            g1.dump(std::cout, true);
+            g2.dump(std::cout, false);
+            
+            std::cout<< g1.to_string() <<std::endl;
+            std::cout<< g2.to_string() <<std::endl;
+        }
         
-        std::cout<< g1.to_string() <<std::endl;
-        std::cout<< g2.to_string() <<std::endl;
+        {
+            g1.dump(std::cout, true);
+            g2.dump(std::cout, false);
+            g1.evolve_double_crossover(2.0, g2);
+            g1.dump(std::cout, true);
+            g2.dump(std::cout, false);
+        }
+        
+        {
+            g1.dump(std::cout, true);
+            g1.evolve_reverse(2.0);
+            g1.dump(std::cout, true);
+        }
+        
+        {
+            g1.dump(std::cout, true);
+            g1.evolve_insert_string(2.0);
+            g1.dump(std::cout, true);
+        }
+        
+        {
+            g1.dump(std::cout, true);
+            g1.evolve_root_insert_string(2.0, GEP.lambda_is_function);
+            g1.dump(std::cout, true);
+        }
     }
     
-    {
-        g1.dump(std::cout, true);
-        g2.dump(std::cout, false);
-        g1.evolve_double_crossover(2.0, g2);
-        g1.dump(std::cout, true);
-        g2.dump(std::cout, false);
-    }
-    
-    {
-        g1.dump(std::cout, true);
-        g1.evolve_reverse(2.0);
-        g1.dump(std::cout, true);
-    }
-    
-    {
-        g1.dump(std::cout, true);
-        g1.evolve_insert_string(2.0);
-        g1.dump(std::cout, true);
-    }
-    
-    {
-        g1.dump(std::cout, true);
-        g1.evolve_root_insert_string(2.0, GEP.lambda_is_function);
-        g1.dump(std::cout, true);
-    }
 	return 0;
 }
 
