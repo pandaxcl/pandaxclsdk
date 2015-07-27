@@ -213,15 +213,11 @@ struct gene_experssion_program
             
             for (int i=nInsert; i+nLength<N_headers; i++)// 插入位置的nLength长度的DNA后移，超出头部长度的直接丢弃
             {
-                // 01234 56 7
-                // 12345 67 8
-                // nStart = 5
-                // nLength = 2
-                // nInsert = 3
-                
+                if (i>=nStart && i<nStart+nLength)// 被选中的插串所在位置的内容不需要向后移动
+                    continue;
                 DNAs[i+nLength] = bk_DNAs[i];
             }
-            for (int i=nInsert; i<nInsert+nLength && i<N_DNAs; i++)
+            for (int i=nInsert; i<nInsert+nLength && i<N_DNAs; i++)// 将插串插入到指定位置
             {
                 DNAs[i] = bk_DNAs[nStart+i-nInsert];
             }
@@ -257,7 +253,7 @@ struct gene_experssion_program
                 // 2. 向后扫描发现函数才可以继续执行根插串操作
                 for(int i=nStart;i<N_headers;i++)
                 {
-                    if (is_function(DNAs[i]))
+                    if (is_function(DNAs[i].f))
                         break;
                     nStart++;
                 }
@@ -619,6 +615,12 @@ int main(int argc, const char*argv[])
     {
         g1.dump(std::cout, true);
         g1.evolve_insert_string(2.0);
+        g1.dump(std::cout, true);
+    }
+    
+    {
+        g1.dump(std::cout, true);
+        g1.evolve_root_insert_string(2.0, GEP.lambda_is_function);
         g1.dump(std::cout, true);
     }
 	return 0;
