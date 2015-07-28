@@ -417,9 +417,16 @@ struct gene_experssion_program
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     
     
+    std::function<void(int F_count, int T_count, DNA_encode F_T[])> inner_lambda_random_initialize;// 随机初始化
     std::function<void()> inner_lambda_fitness_standard; // 标准适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     std::function<void(Real probability, int F_count, int T_count, DNA_encode F_T[])> inner_lambda_mutation_standard;// 标准变异过程
+    std::function<void(Real probability)> inner_lambda_evolve_reverse;
+    std::function<void(Real probability)> inner_lambda_evolve_insert_string;
+    std::function<void(Real probability)> inner_lambda_evolve_root_insert_string;
+    std::function<void(Real probability)> inner_lambda_evolve_single_crossover;
+    std::function<void(Real probability)> inner_lambda_evolve_double_crossover;
+    std::function<void(Real probability)> inner_lambda_evolve_gene_crossover;
     
     gene_experssion_program()
     {
@@ -435,14 +442,30 @@ struct gene_experssion_program
             {
                 units = __units_back;
             }
-            inline Unit*next_generation()
+            inline Unit*current_units()
+            {
+                return this->units;
+            }
+            inline Unit*buffer_units()
             {
                 assert(nullptr != units);
                 return units == __units_front? __units_back : __units_front;
             }
+            inline void swap_units()
+            {
+                units = buffer_units();
+            }
         };
         
         auto local = std::shared_ptr<Local>(new Local());
+        
+        inner_lambda_random_initialize = [local](int F_count, int T_count, DNA_encode F_T[])
+        {
+            for(int i = 0; i<N_units; i++)
+            {
+                local->units[i].random_initialize(F_count, T_count, F_T);
+            }
+        };
         
         inner_lambda_fitness_standard = [local,this]()
         {
@@ -469,7 +492,7 @@ struct gene_experssion_program
             }
             
             
-            Unit*nextGeneration = local->next_generation();
+            Unit*buffer_units = local->buffer_units();
             Real p = static_cast<Real>(std::rand())/RAND_MAX;
 
             for (int i=0; i<N_units; i++)
@@ -478,12 +501,12 @@ struct gene_experssion_program
                 {
                     if(p <= probabilityOfAccum[j])
                     {
-                        nextGeneration[i] = local->units[j];
+                        buffer_units[i] = local->units[j];
                     }
                 }
             }
             
-            local->units = nextGeneration;
+            local->swap_units();
         };
         
         inner_lambda_mutation_standard = [local](Real probability, int F_count, int T_count, DNA_encode F_T[])
@@ -493,6 +516,63 @@ struct gene_experssion_program
                 Unit&unit = local->units[i];
                 unit.evolve_mutate(probability, F_count, T_count, F_T);
             }
+        };
+        
+        inner_lambda_evolve_reverse = [local](Real probability)
+        {
+            for(int i=0; i<N_units; i++)
+            {
+                local->units[i].evolve_reverse(probability);
+            }
+        };
+        inner_lambda_evolve_insert_string = [local](Real probability)
+        {
+            for(int i=0; i<N_units; i++)
+            {
+                local->units[i].evolve_insert_string(probability);
+            }
+        };
+        inner_lambda_evolve_root_insert_string = [local,this](Real probability)
+        {
+            for(int i=0; i<N_units; i++)
+            {
+                local->units[i].evolve_root_insert_string(probability, this->lambda_is_function);
+            }
+        };
+        
+        auto crossover = [local](Real probability, const std::function<void(Real probability, Unit&a, Unit&b)>&f)
+        {
+            Unit*currentUnits = local->current_units();
+            Unit*bufferUnits = local->buffer_units();
+            for(int i=0; i<N_units; i+=2)
+            {
+                bufferUnits[i] = currentUnits[i];
+                bufferUnits[i+1] = currentUnits[i+1];
+                f(probability, bufferUnits[i], bufferUnits[i+1]);
+            }
+            if (1 == N_units%2)// 如果是奇数个单位，那么就需要考虑最后一个单位的处理方式
+            {
+                bufferUnits[N_units-1] = currentUnits[N_units-1];// 最后一个直接进入下一代
+            }
+            local->swap_units();
+        };
+        inner_lambda_evolve_single_crossover = [local,crossover](Real probability)
+        {
+            crossover(probability, [](Real probability, Unit&a, Unit&b){
+                a.evolve_single_crossover(probability, b);
+            });
+        };
+        inner_lambda_evolve_double_crossover = [local,crossover](Real probability)
+        {
+            crossover(probability, [](Real probability, Unit&a, Unit&b){
+                a.evolve_double_crossover(probability, b);
+            });
+        };
+        inner_lambda_evolve_gene_crossover = [local,crossover](Real probability)
+        {
+//            crossover(probability, [](Real probability, Unit&a, Unit&b){
+//                a.evolve_gene_crossover(probability, b);
+//            });
         };
     }
 };
