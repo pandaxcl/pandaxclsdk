@@ -88,7 +88,7 @@ struct gene_experssion_program
     public:
         node_ptr to_tree(gene_experssion_program&GEP) const
         {
-            std::cout<<"============= to_tree ============="<<std::endl;
+            //std::cout<<"============= to_tree ============="<<std::endl;
             auto K = this->DNAs;
             std::queue<node_ptr> Q;
             size_t p = 0;
@@ -107,12 +107,14 @@ struct gene_experssion_program
                 assert(a <= N_maxops);
                 for(int i=0;i<a;i++)
                 {
+                    //this->dump(std::cout, true);
+                    //T->dump(std::cout, 0);
                     assert(p < N_DNAs);
                     auto m = node_ptr(new node(K[p]));
                     n->add_children(m);
                     p++;
                     Q.push(m);
-                    std::cout<<"Q.size() = "<<Q.size()<<" N_maxops = "<<N_maxops<<" a = "<<a<<" p = "<<p<<std::endl;
+                    //std::cout<<"Q.size() = "<<Q.size()<<" N_maxops = "<<N_maxops<<" a = "<<a<<" p = "<<p<<std::endl;
                 }
             }
             return T;
@@ -123,14 +125,14 @@ struct gene_experssion_program
             for(int i=0; i<N_DNAs; i++)
                 DNAs[i] = str[i];
         }
-        std::basic_string<DNA_encode> to_string()
+        std::basic_string<DNA_encode> to_string()const
         {
             std::basic_string<DNA_encode> str;
             for(auto&DNA:DNAs)
                 str.push_back(DNA.f);
             return str;
         }
-        void dump(std::ostream&os, bool moreReadable=false)
+        void dump(std::ostream&os, bool moreReadable=false)const
         {
             if(moreReadable)
             {
@@ -224,7 +226,7 @@ struct gene_experssion_program
                     continue;
                 DNAs[i+nLength] = bk_DNAs[i];
             }
-            for (int i=nInsert; i<nInsert+nLength && i<N_DNAs; i++)// 将插串插入到指定位置
+            for (int i=nInsert; i<nInsert+nLength && i<N_headers; i++)// 将插串插入到指定位置，超出头部长度的直接丢弃
             {
                 DNAs[i] = bk_DNAs[nStart+i-nInsert];
             }
@@ -267,7 +269,7 @@ struct gene_experssion_program
                 }
                 // 3. 获取插串的长度
                 int nLength = 0;
-                switch(N_DNAs-nStart)
+                switch(N_DNAs-nStart-1)
                 {
                     case 0: nLength = 1;break;
                     case 1: nLength = std::rand()%2 + 1; break;// 至少得有1个基因，才能执行插串
@@ -742,20 +744,17 @@ int main(int argc, const char*argv[])
         GEP.lambda_fitness = [&GEP,&variables](const Unit&unit)->Real
         {
             auto y = [](Real a){ return a*a/3 + 2*a;/* 目标方程: y = a*a/3 + 2*a */ };
-            Real sumDy2 = 0.0;
-            int nCount = 0;
+            Real sum = 0.0;
             for(Real x = -10.0; x<10.0; x += 1.0)
             {
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
                 Real dy = y(x) - unit.eval(GEP);
                 
-                sumDy2 += 100+dy*dy;
-                nCount ++;
+                sum += 100-std::abs(dy);
             }
-            Real result = sumDy2/nCount;
-            if (result == std::numeric_limits<Real>::quiet_NaN())
-                result = 0;
-            return result;
+            if (std::isnan(sum))
+                sum = 0;
+            return sum;
         };
         
         GEP.inner_lambda_random_initialize(F_count, T_count, F_T);
