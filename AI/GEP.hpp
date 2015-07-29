@@ -6,50 +6,55 @@
 #include <string>
 #include <algorithm>
 #include <iostream>
-//namespace Private
-//{
-//	template<typename F> struct node_impl_base
-//	{
-//		std::weak_ptr<node> parent;
-//		std::vector<std::shared_ptr<node>> children;
-//		F f;
-//	};
-//	template<typename F, int n> struct node_impl;
-//	template<typename F> struct node_impl<F,0>: public node_impl_base
-//	{
-//		std::result_of<F()>::type operator()
-//		{
-//			return f();
-//		}
-//	};
-//	template<typename F> struct node_impl<F,1>: public node_impl_base
-//	{
-//		template<typename T0>
-//		std::result_of<F(T0)>::type operator(T0 a0)
-//		{
-//			return f(a0);
-//		}
-//	};
-//	template<typename F> struct node_impl<F,2>: public node_impl_base
-//	{
-//		template<typename T0, typename T1>
-//		std::result_of<F(T0,T1)>::type operator(T0 a0, T1 a1)
-//		{
-//			return f(a0, a1);
-//		}
-//	};
-//}
+
+
+template<typename DNA_encode=int, typename Real=double>
+struct gene_experssion_program_api
+{
+    struct operator_t
+    {
+        DNA_encode DNA;
+        int argc;
+        std::function<Real(int argc, Real argv[])> eval;
+    };
+    
+    template<int N_ops>
+    struct function_and_terminal_t
+    {
+        DNA_encode F_T[N_ops];
+        int F_count = 0;
+        int T_count = 0;
+        
+        void import(operator_t*ops, const std::function<bool(DNA_encode)>&is_function, const std::function<bool(DNA_encode)>&is_terminal)
+        {// 按照先Function后Terminal的方式进行排序重组
+            for (int i=0; i<N_ops; i++)
+            {
+                if (is_function(ops[i].DNA))
+                {
+                    F_T[F_count] = ops[i].DNA;
+                    F_count ++;
+                }
+            }
+            for (int i=0; i<N_ops; i++)
+            {
+                if (is_terminal(ops[i].DNA))
+                {
+                    F_T[F_count+T_count] = ops[i].DNA;
+                    T_count ++;
+                }
+            }
+        }
+    };
+};
+
 
 template<
     int N_units,
     int N_genes,
     int N_headers,
-    int N_maxops,
-//    int N_functions,
-//    int N_terminals,
+    int N_maxargs,
     typename T_DNA_encode=int,
     typename T_Real=double
-
 >
 struct gene_experssion_program
 {
@@ -57,6 +62,7 @@ struct gene_experssion_program
     typedef T_DNA_encode DNA_encode;
     class node;
     typedef std::shared_ptr<node> node_ptr;
+    
     struct with_function
     {
         DNA_encode f;
@@ -80,7 +86,7 @@ struct gene_experssion_program
     {
         enum
         {
-            N_tails = N_headers*(N_maxops-1)+1,
+            N_tails = N_headers*(N_maxargs-1)+1,
             N_DNAs = N_headers+N_tails,
         };
 
@@ -104,7 +110,7 @@ struct gene_experssion_program
                 
                 int a = n->arg_count(GEP);
                 assert(a > 0);
-                assert(a <= N_maxops);
+                assert(a <= N_maxargs);
                 for(int i=0;i<a;i++)
                 {
                     //this->dump(std::cout, true);
@@ -368,7 +374,7 @@ struct gene_experssion_program
         friend gene;
         std::weak_ptr<node> parent;
         size_t _size = 0;
-        node_ptr children[N_maxops];
+        node_ptr children[N_maxargs];
     public:
         size_t size_of_children() { return this->_size; }
         void add_children(node_ptr&ptr)
@@ -408,7 +414,7 @@ struct gene_experssion_program
         
         inline Real eval(gene_experssion_program&GEP)
         {
-            Real valuesOfChildren[N_maxops];
+            Real valuesOfChildren[N_maxargs];
             for(int i=0; i<this->size_of_children(); i++)
                 valuesOfChildren[i] = children[i]->eval(GEP);
 
@@ -422,7 +428,6 @@ struct gene_experssion_program
     std::function<bool(DNA_encode)> lambda_is_function;
     std::function<int(DNA_encode)> lambda_arg_count;
     std::function<Real(DNA_encode, int argc, Real argv[])> lambda_eval;// 表达式计算函数
-//    std::function<DNA_encode(int index)> lambda_operator_index_to_DNA_encode;// 初始化种群时候需要的一个映射函数
     
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     
@@ -601,44 +606,6 @@ struct gene_experssion_program
 //            });
         };
     }
-    
-    struct API
-    {
-        struct OP_t
-        {
-            DNA_encode DNA;
-            int argc;
-            std::function<Real(int argc, Real argv[])> eval;
-        };
-        
-        template<int N_ops>
-        struct FT_t
-        {
-            DNA_encode F_T[N_ops];
-            int F_count = 0;
-            int T_count = 0;
-            void import(OP_t*ops, gene_experssion_program&GEP)
-            {// 按照先Function后Terminal的方式进行排序重组
-                for (int i=0; i<N_ops; i++)
-                {
-                    if (GEP.lambda_is_function(ops[i].DNA))
-                    {
-                        F_T[F_count] = ops[i].DNA;
-                        F_count ++;
-                    }
-                }
-                for (int i=0; i<N_ops; i++)
-                {
-                    if (GEP.lambda_is_terminal(ops[i].DNA))
-                    {
-                        F_T[F_count+T_count] = ops[i].DNA;
-                        T_count ++;
-                    }
-                }
-            }
-        };
-        
-    };
 };
 
 /***************************************************
@@ -652,24 +619,16 @@ int main(int argc, const char*argv[])
 {
     //std::srand((unsigned int)time(nullptr));
     std::srand(199999);
-    typedef gene_experssion_program<
-    /*int N_units    */100,
-    /*int N_genes    */1,
-    /*int N_headers  */8,
-    /*int N_maxops   */2,
-    /*typename T_DNA_encode*/char>GEP_t;
     
     
-    auto GEP = GEP_t();
-    
-    typedef GEP_t::Real Real;
-    typedef GEP_t::DNA_encode DNA_encode;
-    typedef GEP_t::Unit Unit;
+    typedef double Real;
+    typedef char DNA_encode;
+
     
     const int a = 0;
     Real variables[1] = {0.0};
     
-    GEP_t::API::OP_t ops[] = {
+    gene_experssion_program_api<DNA_encode,Real>::operator_t ops[] = {
         {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}},
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
@@ -677,22 +636,35 @@ int main(int argc, const char*argv[])
         {'a', 0, [&variables](int argc, Real argv[]){return variables[a];}},
     };
     
-    const int N_ops = sizeof(ops)/sizeof(GEP_t::API::OP_t);
+    const int N_ops = sizeof(ops)/sizeof(gene_experssion_program_api<DNA_encode,Real>::operator_t);
     
     std::map<DNA_encode, int> I;
     for (int i=0; i<N_ops; i++) {I[ops[i].DNA] = i;}
     
     auto is_terminal = [&I,ops](DNA_encode DNA){return 0 == ops[I[DNA]].argc && 0 != ops[I[DNA]].DNA;};
     auto is_function = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc  > 0 && 0 != ops[I[DNA]].DNA;};
+    gene_experssion_program_api<DNA_encode,Real>::function_and_terminal_t<N_ops> ft;
+    ft.import(ops, is_function, is_terminal);
     
+    
+    typedef gene_experssion_program<
+    /*int N_units          */100,
+    /*int N_genes          */1,
+    /*int N_headers        */8,
+    /*int N_maxargs        */2,
+    /*typename T_DNA_encode*/DNA_encode,
+    /*typename T_Real      */Real>GEP_t;
+    
+    typedef GEP_t::Unit Unit;
+    
+    auto GEP = GEP_t();
 
     GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
     GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
     GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
 
-    GEP_t::API::FT_t<N_ops> ft;
-    ft.import(ops, GEP);
+
     
     {
         GEP_t::gene g1, g2;
