@@ -5,6 +5,7 @@
 #include <cassert>
 #include <string>
 #include <algorithm>
+#include <sstream>
 #include <iostream>
 
 
@@ -19,7 +20,7 @@ struct gene_experssion_program_api
     };
     
     template<int N_ops>
-    struct function_and_terminal_t
+    struct functions_and_terminals_t
     {
         DNA_encode F_T[N_ops];
         int F_count = 0;
@@ -53,6 +54,7 @@ template<
     int N_genes,
     int N_headers,
     int N_maxargs,
+    int N_ops,
     typename T_DNA_encode=int,
     typename T_Real=double
 >
@@ -62,6 +64,7 @@ struct gene_experssion_program
     typedef T_DNA_encode DNA_encode;
     class node;
     typedef std::shared_ptr<node> node_ptr;
+    typedef typename gene_experssion_program_api<DNA_encode,Real>::template functions_and_terminals_t<N_ops> functions_and_terminals_t;
     
     struct with_function
     {
@@ -82,8 +85,10 @@ struct gene_experssion_program
         DNA(const node&n):DNA(n->f) {}
         DNA(const DNA_encode f) { this->f = f; }
     };
+    class chromosome;
     class gene
     {
+        friend chromosome;
         enum
         {
             N_tails = N_headers*(N_maxargs-1)+1,
@@ -125,6 +130,11 @@ struct gene_experssion_program
             }
             return T;
         }
+        void dump_tree(gene_experssion_program&GEP, std::ostream&os)
+        {
+            auto root = to_tree(GEP);
+            root->dump(os, 0);
+        }
         void from_string(const std::basic_string<DNA_encode>&str)
         {
             assert(str.size() == N_DNAs);
@@ -138,20 +148,28 @@ struct gene_experssion_program
                 str.push_back(DNA.f);
             return str;
         }
+        std::basic_string<DNA_encode> header_string()const
+        {
+            std::basic_ostringstream<DNA_encode> oss;
+            for(int i=0;i<N_DNAs;i++)
+                oss << i%10;
+            return oss.str();
+        }
         void dump(std::ostream&os, bool moreReadable=false)const
         {
             if(moreReadable)
             {
-                for(int i=0;i<N_DNAs;i++)
-                    os << i%10;
-                os << std::endl;
+                os << header_string() << std::endl;
             }
-            for(auto&DNA:DNAs)
-                os << DNA.f;
-            os << std::endl;
+            os << to_string() << std::endl;
         }
-        void random_initialize(int F_count, int T_count, DNA_encode F_T[])
+        
+        void random_initialize(const functions_and_terminals_t&ft)
         {
+            const DNA_encode *F_T = ft.F_T;
+            int F_count = ft.F_count;
+            int T_count = ft.T_count;
+            
             for (int i=0; i<N_headers; i++)// 头部可以是任何符号
                 DNAs[i] = F_T[std::rand()%(F_count+T_count)];
             
@@ -171,9 +189,13 @@ struct gene_experssion_program
             node_ptr root = to_tree(GEP);
             return root->eval(GEP);
         }
-        
-        void evolve_mutate(Real probability, int F_count, int T_count, DNA_encode F_T[])
+
+        void evolve_mutate(Real probability, const functions_and_terminals_t&ft)
         {
+            const DNA_encode *F_T = ft.F_T;
+            int F_count = ft.F_count;
+            int T_count = ft.T_count;
+            
             Real p = 0.0;
             for (int i=0;i<N_DNAs;i++)
             {
@@ -313,22 +335,44 @@ struct gene_experssion_program
     class chromosome
     {
         gene genes[N_genes];
-        void random_initialize(int F_count, int T_count, DNA_encode F_T[])
+    public:
+        void dump_tree(gene_experssion_program&GEP, std::ostream&os)
+        {
+            for (auto&gene:genes)
+            {
+                auto root = gene.to_tree(GEP);
+                root->dump(os, 0);
+            }
+        }
+        void dump(std::ostream&os, bool moreReadable=false)const
+        {
+            if(moreReadable)
+            {
+                for (auto&gene:genes)
+                    os << gene.header_string();
+                os << std::endl;
+            }
+            for (auto&gene:genes)
+                os << gene.to_string();
+            os << std::endl;
+        }
+        void random_initialize(functions_and_terminals_t&ft)
         {
             for(auto&gene:genes)
-                gene.random_initialize(F_count, T_count, F_T);
+                gene.random_initialize(ft);
         }
-        Real eval(gene_experssion_program&GEP)
+        Real eval(gene_experssion_program&GEP) const
         {
             Real result = 0.0;
             for(auto&gene:genes)
                 result += gene.eval(GEP);
             return result;
         }
-        void evolve_mutate(Real probability, int F_T[])
+
+        void evolve_mutate(Real probability, functions_and_terminals_t&ft)
         {
             for(auto&g:genes)
-                g.evolve_mutate(probability, F_T);
+                g.evolve_mutate(probability, ft);
         }
         void evolve_reverse(Real probability) // 倒串
         {
@@ -340,10 +384,10 @@ struct gene_experssion_program
             for(auto&g:genes)
                 g.evolve_insert_string(probability);
         }
-        void evolve_root_insert_string(Real probability)// 根插串
+        void evolve_root_insert_string(Real probability, const std::function<bool(DNA_encode)>&is_function)// 根插串
         {
             for(auto&g:genes)
-                g.evolve_root_insert_string(probability);
+                g.evolve_root_insert_string(probability, is_function);
         }
         
         void evolve_single_crossover(Real probability, chromosome&another)
@@ -431,18 +475,17 @@ struct gene_experssion_program
     
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     
-    
-    std::function<void(int F_count, int T_count, DNA_encode F_T[])> inner_lambda_random_initialize;// 随机初始化
+    std::function<void(functions_and_terminals_t&ft)> inner_lambda_random_initialize;// 随机初始化
     std::function<std::pair<Real, Unit>()> inner_lambda_fitness_compute; // 适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
-    std::function<void(Real probability, int F_count, int T_count, DNA_encode F_T[])> inner_lambda_evolve_mutation;// 标准变异过程
+    std::function<void(Real probability, functions_and_terminals_t&ft)> inner_lambda_evolve_mutation;// 标准变异过程
     std::function<void(Real probability)> inner_lambda_evolve_reverse;
     std::function<void(Real probability)> inner_lambda_evolve_insert_string;
     std::function<void(Real probability)> inner_lambda_evolve_root_insert_string;
     std::function<void(Real probability)> inner_lambda_evolve_single_crossover;
     std::function<void(Real probability)> inner_lambda_evolve_double_crossover;
     std::function<void(Real probability)> inner_lambda_evolve_gene_crossover;
-    
+
     gene_experssion_program()
     {
         struct Local
@@ -474,11 +517,11 @@ struct gene_experssion_program
         
         auto local = std::shared_ptr<Local>(new Local());
         
-        inner_lambda_random_initialize = [local](int F_count, int T_count, DNA_encode F_T[])
+        inner_lambda_random_initialize = [local](functions_and_terminals_t&ft)
         {
             for(int i = 0; i<N_units; i++)
             {
-                local->units[i].random_initialize(F_count, T_count, F_T);
+                local->units[i].random_initialize(ft);
             }
         };
         
@@ -540,12 +583,12 @@ struct gene_experssion_program
             local->swap_units();
         };
         
-        inner_lambda_evolve_mutation = [local](Real probability, int F_count, int T_count, DNA_encode F_T[])
+        inner_lambda_evolve_mutation = [local](Real probability, functions_and_terminals_t&ft)
         {
             for(int i=0; i<N_units; i++)
             {
                 Unit&unit = local->units[i];
-                unit.evolve_mutate(probability, F_count, T_count, F_T);
+                unit.evolve_mutate(probability, ft);
             }
         };
         
@@ -643,15 +686,16 @@ int main(int argc, const char*argv[])
     
     auto is_terminal = [&I,ops](DNA_encode DNA){return 0 == ops[I[DNA]].argc && 0 != ops[I[DNA]].DNA;};
     auto is_function = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc  > 0 && 0 != ops[I[DNA]].DNA;};
-    gene_experssion_program_api<DNA_encode,Real>::function_and_terminal_t<N_ops> ft;
-    ft.import(ops, is_function, is_terminal);
+    gene_experssion_program_api<DNA_encode,Real>::functions_and_terminals_t<N_ops> functions_and_terminals;
+    functions_and_terminals.import(ops, is_function, is_terminal);
     
     
     typedef gene_experssion_program<
     /*int N_units          */100,
-    /*int N_genes          */1,
+    /*int N_genes          */3,
     /*int N_headers        */8,
     /*int N_maxargs        */2,
+    /*int N_ops            */N_ops,
     /*typename T_DNA_encode*/DNA_encode,
     /*typename T_Real      */Real>GEP_t;
     
@@ -669,8 +713,8 @@ int main(int argc, const char*argv[])
     {
         GEP_t::gene g1, g2;
         {
-            g1.random_initialize(ft.F_count, ft.T_count, ft.F_T);
-            g2.random_initialize(ft.F_count, ft.T_count, ft.F_T);
+            g1.random_initialize(functions_and_terminals);
+            g2.random_initialize(functions_and_terminals);
         }
         {
             g1.dump(std::cout, true);
@@ -730,22 +774,22 @@ int main(int argc, const char*argv[])
     {
         GEP.lambda_fitness = [&GEP,&variables](const Unit&unit)->Real
         {
-            auto y = [](Real a){ return a*a/3 + 2*a;/* 目标方程: y = a*a/3 + 2*a */ };
+            auto y = [](Real a){ return a*a/2 + 3*a;/* 目标方程 */ };
             Real sum = 0.0;
             for(Real x = -10.0; x<10.0; x += 1.0)
             {
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
                 Real dy = y(x) - unit.eval(GEP);
                 
-                sum += 100-std::abs(dy);
+                sum += 1000-std::abs(dy);
             }
             if (std::isnan(sum))
                 sum = 0;
             return sum;
         };
         
-        GEP.inner_lambda_random_initialize(ft.F_count, ft.T_count, ft.F_T);
-        for (int i=0; i<200; i++)
+        GEP.inner_lambda_random_initialize(functions_and_terminals);
+        for (int i=0; i<20000; i++)
         {
             auto best = GEP.inner_lambda_fitness_compute();
             {
@@ -753,10 +797,10 @@ int main(int argc, const char*argv[])
                 auto unit = best.second;
                 std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
                 unit.dump(std::cout, true);
-                unit.to_tree(GEP)->dump(std::cout, 0);
+                unit.dump_tree(GEP, std::cout);
             }
             GEP.inner_lambda_selection_roulette_wheel();
-            GEP.inner_lambda_evolve_mutation(0.044, ft.F_count, ft.T_count, ft.F_T);
+            GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
             GEP.inner_lambda_evolve_reverse(0.1);
             GEP.inner_lambda_evolve_insert_string(0.1);
             GEP.inner_lambda_evolve_root_insert_string(0.1);
