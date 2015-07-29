@@ -601,6 +601,44 @@ struct gene_experssion_program
 //            });
         };
     }
+    
+    struct API
+    {
+        struct OP_t
+        {
+            DNA_encode DNA;
+            int argc;
+            std::function<Real(int argc, Real argv[])> eval;
+        };
+        
+        template<int N_ops>
+        struct FT_t
+        {
+            DNA_encode F_T[N_ops];
+            int F_count = 0;
+            int T_count = 0;
+            void import(OP_t*ops, gene_experssion_program&GEP)
+            {// 按照先Function后Terminal的方式进行排序重组
+                for (int i=0; i<N_ops; i++)
+                {
+                    if (GEP.lambda_is_function(ops[i].DNA))
+                    {
+                        F_T[F_count] = ops[i].DNA;
+                        F_count ++;
+                    }
+                }
+                for (int i=0; i<N_ops; i++)
+                {
+                    if (GEP.lambda_is_terminal(ops[i].DNA))
+                    {
+                        F_T[F_count+T_count] = ops[i].DNA;
+                        T_count ++;
+                    }
+                }
+            }
+        };
+        
+    };
 };
 
 /***************************************************
@@ -631,11 +669,7 @@ int main(int argc, const char*argv[])
     const int a = 0;
     Real variables[1] = {0.0};
     
-    struct OP_t{
-        DNA_encode DNA;
-        int argc;
-        std::function<Real(int argc, Real argv[])> eval;
-    } ops[] = {
+    GEP_t::API::OP_t ops[] = {
         {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}},
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
@@ -643,7 +677,7 @@ int main(int argc, const char*argv[])
         {'a', 0, [&variables](int argc, Real argv[]){return variables[a];}},
     };
     
-    const int N_ops = sizeof(ops)/sizeof(OP_t);
+    const int N_ops = sizeof(ops)/sizeof(GEP_t::API::OP_t);
     
     std::map<DNA_encode, int> I;
     for (int i=0; i<N_ops; i++) {I[ops[i].DNA] = i;}
@@ -651,39 +685,20 @@ int main(int argc, const char*argv[])
     auto is_terminal = [&I,ops](DNA_encode DNA){return 0 == ops[I[DNA]].argc && 0 != ops[I[DNA]].DNA;};
     auto is_function = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc  > 0 && 0 != ops[I[DNA]].DNA;};
     
-    DNA_encode F_T[N_ops];
-    int F_count = 0;
-    int T_count = 0;
-    
-    {// 按照先Function后Terminal的方式进行排序重组
-        for (int i=0; i<N_ops; i++)
-        {
-            if (is_function(ops[i].DNA))
-            {
-                F_T[F_count] = ops[i].DNA;
-                F_count ++;
-            }
-        }
-        for (int i=0; i<N_ops; i++)
-        {
-            if (is_terminal(ops[i].DNA))
-            {
-                F_T[F_count+T_count] = ops[i].DNA;
-                T_count ++;
-            }
-        }
-    }
 
     GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
     GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
     GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
 
+    GEP_t::API::FT_t<N_ops> ft;
+    ft.import(ops, GEP);
+    
     {
         GEP_t::gene g1, g2;
         {
-            g1.random_initialize(F_count, T_count, F_T);
-            g2.random_initialize(F_count, T_count, F_T);
+            g1.random_initialize(ft.F_count, ft.T_count, ft.F_T);
+            g2.random_initialize(ft.F_count, ft.T_count, ft.F_T);
         }
         {
             g1.dump(std::cout, true);
@@ -757,7 +772,7 @@ int main(int argc, const char*argv[])
             return sum;
         };
         
-        GEP.inner_lambda_random_initialize(F_count, T_count, F_T);
+        GEP.inner_lambda_random_initialize(ft.F_count, ft.T_count, ft.F_T);
         for (int i=0; i<200; i++)
         {
             auto best = GEP.inner_lambda_fitness_compute();
@@ -769,7 +784,7 @@ int main(int argc, const char*argv[])
                 unit.to_tree(GEP)->dump(std::cout, 0);
             }
             GEP.inner_lambda_selection_roulette_wheel();
-            GEP.inner_lambda_evolve_mutation(0.044, F_count, T_count, F_T);
+            GEP.inner_lambda_evolve_mutation(0.044, ft.F_count, ft.T_count, ft.F_T);
             GEP.inner_lambda_evolve_reverse(0.1);
             GEP.inner_lambda_evolve_insert_string(0.1);
             GEP.inner_lambda_evolve_root_insert_string(0.1);
