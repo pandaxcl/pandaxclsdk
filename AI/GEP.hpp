@@ -779,25 +779,55 @@ int main(int argc, const char*argv[])
             for(Real x = -10.0; x<10.0; x += 1.0)
             {
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
-                Real dy = y(x) - unit.eval(GEP);
+                Real yx = y(x);
+                Real ex = unit.eval(GEP);
+                Real dy = std::abs(yx - ex);
+                //Real dy = std::abs(y(x) - unit.eval(GEP));
                 
-                sum += 1000-std::abs(dy);
+                if (std::isnan(dy))
+                    dy = 0;
+                if (std::isinf(dy))
+                    dy = 0;
+                
+                const Real M = 100000000;
+                assert(dy <= M);
+                
+                sum += M-dy;
             }
-            if (std::isnan(sum))
-                sum = 0;
             return sum;
         };
         
         GEP.inner_lambda_random_initialize(functions_and_terminals);
-        for (int i=0; i<20000; i++)
+        Real bestFitness = 0;
+        Unit bestUnit;
+        for (int i=0; i<2000; i++)
         {
             auto best = GEP.inner_lambda_fitness_compute();
             {
                 Real fitness = best.first;
                 auto unit = best.second;
-                std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
-                unit.dump(std::cout, true);
-                unit.dump_tree(GEP, std::cout);
+                
+                auto report = [&]()
+                {
+                    std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
+                    unit.dump(std::cout, true);
+                    unit.dump_tree(GEP, std::cout);
+                };
+                if (0 == i)
+                {
+                    bestFitness = fitness;
+                    bestUnit = unit;
+                    report();
+                }
+                else
+                {
+                    if (fitness > bestFitness)
+                    {
+                        bestFitness = fitness;
+                        bestUnit = unit;
+                        report();
+                    }
+                }
             }
             GEP.inner_lambda_selection_roulette_wheel();
             GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
