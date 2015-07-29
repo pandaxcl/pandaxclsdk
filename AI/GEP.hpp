@@ -5,6 +5,7 @@
 #include <cassert>
 #include <string>
 #include <algorithm>
+#include <iostream>
 //namespace Private
 //{
 //	template<typename F> struct node_impl_base
@@ -63,7 +64,7 @@ struct gene_experssion_program
         {
             return GEP.lambda_is_terminal(f);
         }
-        inline size_t arg_count(gene_experssion_program&GEP)
+        inline int arg_count(gene_experssion_program&GEP)
         {
             return GEP.lambda_arg_count(f);
         }
@@ -87,6 +88,7 @@ struct gene_experssion_program
     public:
         node_ptr to_tree(gene_experssion_program&GEP) const
         {
+            std::cout<<"============= to_tree ============="<<std::endl;
             auto K = this->DNAs;
             std::queue<node_ptr> Q;
             size_t p = 0;
@@ -95,17 +97,22 @@ struct gene_experssion_program
             Q.push(T);
             while(!Q.empty())
             {
-                const auto&n = Q.front(); Q.pop();
+                auto n = Q.front();
+                Q.pop();
                 if(n->is_terminal(GEP))
                     continue;
                 
-                size_t a = n->arg_count(GEP);
-                for(size_t i=0;i<a;i++)
+                int a = n->arg_count(GEP);
+                assert(a > 0);
+                assert(a <= N_maxops);
+                for(int i=0;i<a;i++)
                 {
+                    assert(p < N_DNAs);
                     auto m = node_ptr(new node(K[p]));
-                    n->add_children(m);m->parent = n;
+                    n->add_children(m);
                     p++;
                     Q.push(m);
+                    std::cout<<"Q.size() = "<<Q.size()<<" N_maxops = "<<N_maxops<<" a = "<<a<<" p = "<<p<<std::endl;
                 }
             }
             return T;
@@ -228,17 +235,18 @@ struct gene_experssion_program
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nStart = std::rand()%N_DNAs;// 选择的插串的开始点可以是任何地方
+                // 1. 选择的插串的开始点可以是任何地方
+                int nStart = std::rand()%N_DNAs;
+                // 2. 获取插串的长度
                 int nLength = 0;
-                switch(N_DNAs-nStart)
+                switch(N_DNAs-nStart-1)
                 {
-                    case 0: return;
-                    case 1: nLength = 1;
-                    case 2: nLength = std::rand()%2 + 1;// 至少得有1个基因，才能执行插串
+                    case 0: nLength = 1;break;
+                    case 1: nLength = std::rand()%2 + 1; break;// 至少得有1个基因，才能执行插串
                     default:nLength = std::rand()%(N_DNAs-nStart-1)+1;// 至少得有1个基因，才能执行插串
                 }
                 int nInsert = std::rand()%(N_headers-1)+1; // 因为不能插到基因的第一个位置
-                
+                // 3. 执行插串
                 insert_string(nStart, nLength, nInsert);
             }
         }
@@ -261,9 +269,8 @@ struct gene_experssion_program
                 int nLength = 0;
                 switch(N_DNAs-nStart)
                 {
-                    case 0: return;
-                    case 1: nLength = 1;
-                    case 2: nLength = std::rand()%2 + 1;// 至少得有1个基因，才能执行插串
+                    case 0: nLength = 1;break;
+                    case 1: nLength = std::rand()%2 + 1; break;// 至少得有1个基因，才能执行插串
                     default:nLength = std::rand()%(N_DNAs-nStart-1)+1;// 至少得有1个基因，才能执行插串
                 }
                 int nInsert = 0; // 根插串就是将插串插到基因的第一个位置
@@ -354,7 +361,7 @@ struct gene_experssion_program
         }
     };
     
-    class node:public with_function
+    class node:public with_function, public std::enable_shared_from_this<node>
     {
         friend gene;
         std::weak_ptr<node> parent;
@@ -366,6 +373,7 @@ struct gene_experssion_program
         {
             children[_size] = ptr;
             _size++;
+            ptr->parent = this->shared_from_this();
         }
         void dump(std::ostream&os, int level)
         {
@@ -418,9 +426,9 @@ struct gene_experssion_program
     
     
     std::function<void(int F_count, int T_count, DNA_encode F_T[])> inner_lambda_random_initialize;// 随机初始化
-    std::function<void()> inner_lambda_fitness_standard; // 标准适应度计算
+    std::function<std::pair<Real, Unit>()> inner_lambda_fitness_compute; // 适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
-    std::function<void(Real probability, int F_count, int T_count, DNA_encode F_T[])> inner_lambda_mutation_standard;// 标准变异过程
+    std::function<void(Real probability, int F_count, int T_count, DNA_encode F_T[])> inner_lambda_evolve_mutation;// 标准变异过程
     std::function<void(Real probability)> inner_lambda_evolve_reverse;
     std::function<void(Real probability)> inner_lambda_evolve_insert_string;
     std::function<void(Real probability)> inner_lambda_evolve_root_insert_string;
@@ -467,12 +475,28 @@ struct gene_experssion_program
             }
         };
         
-        inner_lambda_fitness_standard = [local,this]()
+        inner_lambda_fitness_compute = [local,this]()
         {
+            Real bestFitness = 0;
+            int bestIndex = 0;
             for(int i = 0; i<N_units; i++)
             {
                 local->fitnesses[i] = this->lambda_fitness(local->units[i]);
+                if (0 == i)
+                {
+                    bestFitness = local->fitnesses[i];
+                    bestIndex = i;
+                }
+                else
+                {
+                    if (local->fitnesses[i] > bestFitness)
+                    {
+                        bestFitness = local->fitnesses[i];
+                        bestIndex = i;
+                    }
+                }
             }
+            return std::make_pair(bestFitness, local->units[bestIndex]);
         };
         
         inner_lambda_selection_roulette_wheel = [local]()
@@ -509,7 +533,7 @@ struct gene_experssion_program
             local->swap_units();
         };
         
-        inner_lambda_mutation_standard = [local](Real probability, int F_count, int T_count, DNA_encode F_T[])
+        inner_lambda_evolve_mutation = [local](Real probability, int F_count, int T_count, DNA_encode F_T[])
         {
             for(int i=0; i<N_units; i++)
             {
@@ -651,21 +675,6 @@ int main(int argc, const char*argv[])
     GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
     GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
     GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
-    GEP.lambda_fitness = [&GEP,&variables](const Unit&unit)->Real
-    {
-        auto y = [](Real a){ return a*a/3 + 2*a;/* 目标方程: y = a*a/3 + 2*a */ };
-        Real sumDy2 = 0.0;
-        int nCount = 0;
-        for(Real x = -10.0; x<10.0; x += 1.0)
-        {
-            variables[a] = x;// 为了unit执行求值，需要先赋予变量值
-            Real dy = y(x) - unit.eval(GEP);
-            
-            sumDy2 += dy*dy;
-            nCount ++;
-        }
-        return sumDy2/nCount;
-    };
     GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
 
     {
@@ -728,6 +737,48 @@ int main(int argc, const char*argv[])
         }
     }
     
+    // 开始进行完整的GEP运算
+    {
+        GEP.lambda_fitness = [&GEP,&variables](const Unit&unit)->Real
+        {
+            auto y = [](Real a){ return a*a/3 + 2*a;/* 目标方程: y = a*a/3 + 2*a */ };
+            Real sumDy2 = 0.0;
+            int nCount = 0;
+            for(Real x = -10.0; x<10.0; x += 1.0)
+            {
+                variables[a] = x;// 为了unit执行求值，需要先赋予变量值
+                Real dy = y(x) - unit.eval(GEP);
+                
+                sumDy2 += 100+dy*dy;
+                nCount ++;
+            }
+            Real result = sumDy2/nCount;
+            if (result == std::numeric_limits<Real>::quiet_NaN())
+                result = 0;
+            return result;
+        };
+        
+        GEP.inner_lambda_random_initialize(F_count, T_count, F_T);
+        for (int i=0; i<200; i++)
+        {
+            auto best = GEP.inner_lambda_fitness_compute();
+            {
+                Real fitness = best.first;
+                auto unit = best.second;
+                std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
+                unit.dump(std::cout, true);
+                unit.to_tree(GEP)->dump(std::cout, 0);
+            }
+            GEP.inner_lambda_selection_roulette_wheel();
+            GEP.inner_lambda_evolve_mutation(0.044, F_count, T_count, F_T);
+            GEP.inner_lambda_evolve_reverse(0.1);
+            GEP.inner_lambda_evolve_insert_string(0.1);
+            GEP.inner_lambda_evolve_root_insert_string(0.1);
+            GEP.inner_lambda_evolve_single_crossover(0.4);
+            GEP.inner_lambda_evolve_double_crossover(0.2);
+            GEP.inner_lambda_evolve_gene_crossover(0.1);
+        }
+    }
 	return 0;
 }
 
