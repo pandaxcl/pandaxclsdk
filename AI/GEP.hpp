@@ -130,7 +130,7 @@ struct gene_experssion_program
             }
             return T;
         }
-        void dump_tree(gene_experssion_program&GEP, std::ostream&os)
+        void dump_tree(std::ostream&os, gene_experssion_program&GEP) const
         {
             auto root = to_tree(GEP);
             root->dump(os, 0);
@@ -336,7 +336,7 @@ struct gene_experssion_program
     {
         gene genes[N_genes];
     public:
-        void dump_tree(gene_experssion_program&GEP, std::ostream&os)
+        void dump_tree(std::ostream&os, gene_experssion_program&GEP) const
         {
             for (auto&gene:genes)
             {
@@ -660,8 +660,8 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 #include <iostream>
 int main(int argc, const char*argv[])
 {
-    //std::srand((unsigned int)time(nullptr));
-    std::srand(199999);
+    std::srand((unsigned int)time(nullptr));
+    //std::srand(199999);
     
     
     typedef double Real;
@@ -772,29 +772,51 @@ int main(int argc, const char*argv[])
     
     // 开始进行完整的GEP运算
     {
-        GEP.lambda_fitness = [&GEP,&variables](const Unit&unit)->Real
+        auto y = [](Real a){ return a*a/2 + 3*a;/* 目标方程 */ };
+//        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
+//        {
+//            Real sum = 0.0;
+//            for(Real x = -10.0; x<10.0; x += 1.0)
+//            {
+//                variables[a] = x;// 为了unit执行求值，需要先赋予变量值
+//                Real yx = y(x);
+//                Real ex = unit.eval(GEP);
+//                Real dy = std::abs(yx - ex);
+//                
+//                if (std::isnan(dy))
+//                    dy = 0;
+//                if (std::isinf(dy))
+//                    dy = 0;
+//                
+//                const Real M = 100000000;
+//                assert(dy <= M);
+//                
+//                sum += M-dy;
+//            }
+//            return sum;
+//        };
+        
+        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
         {
-            auto y = [](Real a){ return a*a/2 + 3*a;/* 目标方程 */ };
             Real sum = 0.0;
-            for(Real x = -10.0; x<10.0; x += 1.0)
+            int nCount = 0;
+            for(Real x = -10.0; x<10.0; x += 1.0/4, nCount++)
             {
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
                 Real ex = unit.eval(GEP);
                 Real dy = std::abs(yx - ex);
-                //Real dy = std::abs(y(x) - unit.eval(GEP));
                 
-                if (std::isnan(dy))
-                    dy = 0;
-                if (std::isinf(dy))
-                    dy = 0;
-                
-                const Real M = 100000000;
-                assert(dy <= M);
-                
-                sum += M-dy;
+                if (std::isnan(dy) || std::isinf(dy))
+                {
+                    return 0.0;
+                    break;
+                }
+                sum += dy*dy;
             }
-            return sum;
+            Real E = sum/nCount;
+            
+            return 1000*1/(1+E);
         };
         
         GEP.inner_lambda_random_initialize(functions_and_terminals);
@@ -811,7 +833,7 @@ int main(int argc, const char*argv[])
                 {
                     std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
                     unit.dump(std::cout, true);
-                    unit.dump_tree(GEP, std::cout);
+                    unit.dump_tree(std::cout, GEP);
                 };
                 if (0 == i)
                 {
@@ -828,9 +850,12 @@ int main(int argc, const char*argv[])
                         report();
                     }
                 }
+                if (0 == i%100) {
+                    std::cout<<"i = "<<i<<std::endl;
+                }
             }
             GEP.inner_lambda_selection_roulette_wheel();
-            GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
+            GEP.inner_lambda_evolve_mutation(0.044*2, functions_and_terminals);
             GEP.inner_lambda_evolve_reverse(0.1);
             GEP.inner_lambda_evolve_insert_string(0.1);
             GEP.inner_lambda_evolve_root_insert_string(0.1);
