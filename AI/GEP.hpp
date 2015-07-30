@@ -97,6 +97,11 @@ struct gene_experssion_program
 
         DNA DNAs[N_DNAs];
     public:
+        gene(){}
+        gene(const std::basic_string<DNA_encode>&str)
+        {
+            from_string(str);
+        }
         node_ptr to_tree(gene_experssion_program&GEP) const
         {
             //std::cout<<"============= to_tree ============="<<std::endl;
@@ -209,6 +214,17 @@ struct gene_experssion_program
                 }
             }
         }
+        void reverse(int nStart, int nLength)
+        {
+            assert(nStart >= 0);
+            assert(nStart < N_headers);// 倒串只作用到基因的头部
+            assert(nLength >=2 );// 至少有两个才谈得倒串
+            assert(nStart+nLength-1 < N_headers); // 倒串不可以超出头部范围
+            for (int i=nStart; i<nStart+nLength/2; i++)
+            {
+                std::swap(DNAs[i], DNAs[nStart+nLength-(i-nStart)-1]);
+            }
+        }
         void evolve_reverse(Real probability) // 倒串
         {
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
@@ -216,31 +232,23 @@ struct gene_experssion_program
             {
                 int nStart = std::rand()%N_headers;// 倒串只作用到基因的头部
                 int nLength = 0;
-                switch(N_headers-nStart)
+                switch(N_headers-nStart-2)
                 {
-                    case 0:return;
-                    case 1:return;
-                    case 2:nLength = 2;break;
-                    case 3:nLength = std::rand()%2+2;break;
+                    case -1:return;break;
+                    case 0:nLength = 2;break;
+                    case 1:nLength = std::rand()%2+2;break;
                     default:
                         nLength = std::rand()%(N_headers-nStart-2)+2;// 至少有两个DNA，才谈得上倒串
                 }
                 
-                for (int i=nStart; i<nStart+nLength/2; i++)
-                {
-                    // 12 345 678
-                    // nStart = 2;
-                    // nLength = 3;
-                    // i=2, 2+3-i+1=4
-                    // i=3, 2+3-i+1=3
-                    // i=4, 2+3-i+1=2
-                    std::swap(DNAs[i], DNAs[nStart+nLength-(i-nStart)-1]);
-                }
+                reverse(nStart, nLength);
             }
         }
 
         void insert_string(int nStart, int nLength, int nInsert)
         {
+            assert(nInsert>=0);
+            assert(nInsert<N_headers);
             if (nStart == nInsert)// 被插入串的位置和插入的位置相同，意味着插入之后结果不变，所以就没有插入的必要了
                 return;
             
@@ -259,7 +267,6 @@ struct gene_experssion_program
                 DNAs[i] = bk_DNAs[nStart+i-nInsert];
             }
         }
-        
         void evolve_insert_string(Real probability)// 插串
         {
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
@@ -307,18 +314,25 @@ struct gene_experssion_program
                 insert_string(nStart, nLength, nInsert);
             }
         }
-        
+        void single_crossover(int nCrossOver, gene&another)
+        {
+            for (int i=nCrossOver; i<N_DNAs; i++)
+                std::swap(DNAs[i], another.DNAs[i]);
+        }
         void evolve_single_crossover(Real probability, gene&another)
         {
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
                 int nCrossOver = std::rand()%(N_DNAs-1)+1;//单点交叉，交叉点不能是第一个
-                for (int i=nCrossOver; i<N_DNAs; i++)
-                    std::swap(DNAs[i], another.DNAs[i]);
+                single_crossover(nCrossOver, another);
             }
         }
-        
+        void double_crossover(int nCrossOver, int nLength, gene&another)
+        {
+            for (int i=nCrossOver; i<nCrossOver+nLength && i<N_DNAs; i++)
+                std::swap(DNAs[i], another.DNAs[i]);
+        }
         void evolve_double_crossover(Real probability, gene&another)
         {
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
@@ -326,8 +340,7 @@ struct gene_experssion_program
             {
                 int nCrossOver = std::rand()%(N_DNAs-1-1)+1;//两点交叉，交叉点不能是第一个和最后一个
                 int nLength = std::rand()%(N_DNAs);
-                for (int i=nCrossOver; i<nCrossOver+nLength && i<N_DNAs; i++)
-                    std::swap(DNAs[i], another.DNAs[i]);
+                double_crossover(nCrossOver, nLength, another);
             }
         }
     };
@@ -711,62 +724,73 @@ int main(int argc, const char*argv[])
 
     
     {
-        GEP_t::gene g1, g2;
+        
         {
+            GEP_t::gene g1, g2;
             g1.random_initialize(functions_and_terminals);
             g2.random_initialize(functions_and_terminals);
-        }
-        {
             g1.dump(std::cout, true);
             g2.dump(std::cout);
         }
+
         {
-            auto root = g1.to_tree(GEP);
+            GEP_t::gene g("*a//+a+-aaaaaaaaa");
+            auto root = g.to_tree(GEP);
             root->dump(std::cout, 0);
             variables[a] = 0.5;
-            std::cout<<"g1.eval(GEP) = "<<g1.eval(GEP)<<std::endl;
+            std::cout<<"g.eval(GEP) = "<<g.eval(GEP)<<std::endl;
         }
         {
-            auto root = g2.to_tree(GEP);
-            root->dump(std::cout, 0);
-            variables[a] = 0.5;
-            std::cout<<"g2.eval(GEP) = "<<g2.eval(GEP)<<std::endl;
-        }
-        {
-            g1.dump(std::cout, true);
-            g2.dump(std::cout, false);
-            g1.evolve_single_crossover(2.0, g2);
-            g1.dump(std::cout, true);
-            g2.dump(std::cout, false);
-            
-            std::cout<< g1.to_string() <<std::endl;
-            std::cout<< g2.to_string() <<std::endl;
-        }
-        
-        {
-            g1.dump(std::cout, true);
-            g2.dump(std::cout, false);
-            g1.evolve_double_crossover(2.0, g2);
-            g1.dump(std::cout, true);
-            g2.dump(std::cout, false);
+            {
+                GEP_t::gene g1("*a//+a+-aaaaaaaaa");
+                GEP_t::gene g2("+a*a-*-/aaaaaaaaa");
+                assert(g1.to_string() == "*a//+a+-aaaaaaaaa");
+                assert(g2.to_string() == "+a*a-*-/aaaaaaaaa");
+                g1.single_crossover(1, g2);
+                assert(g1.to_string() == "*a*a-*-/aaaaaaaaa");
+                assert(g2.to_string() == "+a//+a+-aaaaaaaaa");
+            }
+            {
+                GEP_t::gene g1("*a//+a+-aaaaaaaaa");
+                GEP_t::gene g2("+a*a-*-/aaaaaaaaa");
+                assert(g1.to_string() == "*a//+a+-aaaaaaaaa");
+                assert(g2.to_string() == "+a*a-*-/aaaaaaaaa");
+                g1.single_crossover(5, g2);
+                assert(g1.to_string() == "*a//+*-/aaaaaaaaa");
+                assert(g2.to_string() == "+a*a-a+-aaaaaaaaa");
+            }
         }
         
         {
-            g1.dump(std::cout, true);
-            g1.evolve_reverse(2.0);
-            g1.dump(std::cout, true);
+            GEP_t::gene g1("*a//+a+-aaaaaaaaa");
+            GEP_t::gene g2("+a*a-*-/aaaaaaaaa");
+            assert(g1.to_string() == "*a//+a+-aaaaaaaaa");
+            assert(g2.to_string() == "+a*a-*-/aaaaaaaaa");
+            g1.double_crossover(2, 5, g2);
+            assert(g1.to_string() == "*a*a-*--aaaaaaaaa");
+            assert(g2.to_string() == "+a//+a+/aaaaaaaaa");
         }
         
         {
-            g1.dump(std::cout, true);
-            g1.evolve_insert_string(2.0);
-            g1.dump(std::cout, true);
+            GEP_t::gene g("*a//+a+-aaaaaaaaa");
+            assert(g.to_string() == "*a//+a+-aaaaaaaaa");
+            g.reverse(3, 5);
+            assert(g.to_string() == "*a/-+a+/aaaaaaaaa");
         }
         
         {
-            g1.dump(std::cout, true);
-            g1.evolve_root_insert_string(2.0, GEP.lambda_is_function);
-            g1.dump(std::cout, true);
+            GEP_t::gene g("*a//+a+-aaaaaaaaa");
+            assert(g.to_string() == "*a//+a+-aaaaaaaaa");
+            g.insert_string(3, 8, 5);
+            //                       012345 67 890123456
+            assert(g.to_string() == "*a/              /+a+-aaa         aaaaaa");
+        }
+        
+        {
+            GEP_t::gene g("*a//+a+-aaaaaaaaa");
+            g.dump(std::cout, true);
+            g.evolve_root_insert_string(2.0, GEP.lambda_is_function);
+            g.dump(std::cout, true);
         }
     }
     
@@ -805,13 +829,14 @@ int main(int argc, const char*argv[])
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
                 Real ex = unit.eval(GEP);
-                Real dy = std::abs(yx - ex);
                 
-                if (std::isnan(dy) || std::isinf(dy))
+                if (std::isnan(ex) || std::isinf(ex))
                 {
                     return 0.0;
                     break;
                 }
+                
+                Real dy = std::abs(yx - ex);
                 sum += dy*dy;
             }
             Real E = sum/nCount;
