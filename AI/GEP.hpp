@@ -249,23 +249,45 @@ struct gene_experssion_program
         {
             assert(nInsert>=0);
             assert(nInsert<N_headers);
-            if (nStart == nInsert)// 被插入串的位置和插入的位置相同，意味着插入之后结果不变，所以就没有插入的必要了
+            if (nInsert >= nStart && nInsert<nStart+nLength)// 被插入串的位置在插串中间位置或者重合，意味着插入之后结果不变或者没法进行操作，所以就没有插入的必要了
                 return;
             
             DNA bk_DNAs[N_DNAs];// 因为操作的是同一个序列，因此难免会重复，所以就先备份出来
             for(int i=0; i<N_DNAs; i++)
                 bk_DNAs[i] = DNAs[i];
             
-            for (int i=nInsert; i+nLength<N_headers; i++)// 插入位置的nLength长度的DNA后移，超出头部长度的直接丢弃
+            if (nInsert < nStart)
             {
-                if (i>=nStart && i<nStart+nLength)// 被选中的插串所在位置的内容不需要向后移动
-                    continue;
-                DNAs[i+nLength] = bk_DNAs[i];
+                for (int i=nInsert; i+nLength<N_headers; i++)// 被移动到的位置不可以超过头部位置
+                {
+                    if (i>=nStart && i<nStart+nLength)// 被选中的插串所在位置的内容不需要向后移动
+                        continue;
+                    DNAs[i+nLength] = bk_DNAs[i];
+                }
+                for (int i=nInsert; i<nInsert+nLength && i<N_headers; i++)// 将插串插入到指定位置，超出头部长度的直接丢弃
+                {
+                    DNAs[i] = bk_DNAs[nStart+i-nInsert];
+                }
             }
-            for (int i=nInsert; i<nInsert+nLength && i<N_headers; i++)// 将插串插入到指定位置，超出头部长度的直接丢弃
+            else if(nInsert > nStart+nLength)
             {
-                DNAs[i] = bk_DNAs[nStart+i-nInsert];
+                if (nInsert+nLength<=N_headers)
+                {
+                    for (int i=nStart;i<nStart+nLength && i<N_headers;i++)
+                        DNAs[i] = bk_DNAs[nStart+i-nInsert];
+                }
             }
+            
+//            for (int i=nInsert; i<N_headers; i++)// 插入位置的nLength长度的DNA后移，超出头部长度的直接丢弃
+//            {
+//                if (i>=nStart && i<nStart+nLength)// 被选中的插串所在位置的内容不需要向后移动
+//                    continue;
+//                DNAs[i+nLength] = bk_DNAs[i];
+//            }
+//            for (int i=nInsert; i<nInsert+nLength && i<N_headers; i++)// 将插串插入到指定位置，超出头部长度的直接丢弃
+//            {
+//                DNAs[i] = bk_DNAs[nStart+i-nInsert];
+//            }
         }
         void evolve_insert_string(Real probability)// 插串
         {
@@ -702,28 +724,24 @@ int main(int argc, const char*argv[])
     gene_experssion_program_api<DNA_encode,Real>::functions_and_terminals_t<N_ops> functions_and_terminals;
     functions_and_terminals.import(ops, is_function, is_terminal);
     
-    
-    typedef gene_experssion_program<
-    /*int N_units          */100,
-    /*int N_genes          */3,
-    /*int N_headers        */8,
-    /*int N_maxargs        */2,
-    /*int N_ops            */N_ops,
-    /*typename T_DNA_encode*/DNA_encode,
-    /*typename T_Real      */Real>GEP_t;
-    
-    typedef GEP_t::Unit Unit;
-    
-    auto GEP = GEP_t();
-
-    GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
-    GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
-    GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
-    GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
-
-
-    
     {
+        typedef gene_experssion_program<
+        /*int N_units          */100,
+        /*int N_genes          */3,
+        /*int N_headers        */8,
+        /*int N_maxargs        */2,
+        /*int N_ops            */N_ops,
+        /*typename T_DNA_encode*/DNA_encode,
+        /*typename T_Real      */Real>GEP_t;
+        
+        typedef GEP_t::Unit Unit;
+        
+        auto GEP = GEP_t();
+        
+        GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
+        GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
+        GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
+        GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
         
         {
             GEP_t::gene g1, g2;
@@ -732,7 +750,7 @@ int main(int argc, const char*argv[])
             g1.dump(std::cout, true);
             g2.dump(std::cout);
         }
-
+        
         {
             GEP_t::gene g("*a//+a+-aaaaaaaaa");
             auto root = g.to_tree(GEP);
@@ -782,20 +800,61 @@ int main(int argc, const char*argv[])
             GEP_t::gene g("*a//+a+-aaaaaaaaa");
             assert(g.to_string() == "*a//+a+-aaaaaaaaa");
             g.insert_string(3, 8, 5);
-            //                       012345 67 890123456
-            assert(g.to_string() == "*a/              /+a+-aaa         aaaaaa");
+            //                       01234567890123456
+            assert(g.to_string() == "*a//+a+-aaaaaaaaa");
+        }
+        {
+            GEP_t::gene g("*a//+a+-aaaaaaaaa");
+            assert(g.to_string() == "*a//+a+-aaaaaaaaa");
+            g.insert_string(3, 8, 2);
+            //                       01234567890123456
+            assert(g.to_string() == "*a/+a+-aaaaaaaaaa");
+            //                       *a/+a+-aaaaaaaaaa
+        }
+        {
+            GEP_t::gene g("*a//+a+-aaaaaaaaa");
+            assert(g.to_string() == "*a//+a+-aaaaaaaaa");
+            g.insert_string(3, 2, 7);
+            //                       01234567890123456
+            assert(g.to_string() == "*a//+a+-aaaaaaaaa");
+            //                       *a/+a+-aaaaaaaaaa
+        }
+        {
+            GEP_t::gene g("*a//+a+-aaaaaaaaa");
+            assert(g.to_string() == "*a//+a+-aaaaaaaaa");
+            g.insert_string(3, 2, 6);
+            //                       01234567890123456
+            //assert(g.to_string() == "*a/a+-/+aaaaaaaaa");
+            //                       *a/+a+-aaaaaaaaaa
         }
         
         {
             GEP_t::gene g("*a//+a+-aaaaaaaaa");
             g.dump(std::cout, true);
-            g.evolve_root_insert_string(2.0, GEP.lambda_is_function);
+            g.evolve_root_insert_string(2.0, is_function);
             g.dump(std::cout, true);
         }
     }
     
     // 开始进行完整的GEP运算
     {
+        typedef gene_experssion_program<
+        /*int N_units          */100,
+        /*int N_genes          */3,
+        /*int N_headers        */8,
+        /*int N_maxargs        */2,
+        /*int N_ops            */N_ops,
+        /*typename T_DNA_encode*/DNA_encode,
+        /*typename T_Real      */Real>GEP_t;
+        
+        typedef GEP_t::Unit Unit;
+        
+        auto GEP = GEP_t();
+        
+        GEP.lambda_arg_count = [&I,ops](DNA_encode DNA){return ops[I[DNA]].argc;};
+        GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
+        GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
+        GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
         auto y = [](Real a){ return a*a/2 + 3*a;/* 目标方程 */ };
 //        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
 //        {
@@ -824,7 +883,7 @@ int main(int argc, const char*argv[])
         {
             Real sum = 0.0;
             int nCount = 0;
-            for(Real x = -10.0; x<10.0; x += 1.0/4, nCount++)
+            for(Real x = -10.0; x<10.0; x += 1.0/100, nCount++)
             {
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
@@ -875,15 +934,15 @@ int main(int argc, const char*argv[])
                         report();
                     }
                 }
-                if (0 == i%100) {
+                if (0 == i%50) {
                     std::cout<<"i = "<<i<<std::endl;
                 }
             }
             GEP.inner_lambda_selection_roulette_wheel();
-            GEP.inner_lambda_evolve_mutation(0.044*2, functions_and_terminals);
+            GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
             GEP.inner_lambda_evolve_reverse(0.1);
-            GEP.inner_lambda_evolve_insert_string(0.1);
-            GEP.inner_lambda_evolve_root_insert_string(0.1);
+//            GEP.inner_lambda_evolve_insert_string(0.1);
+//            GEP.inner_lambda_evolve_root_insert_string(0.1);
             GEP.inner_lambda_evolve_single_crossover(0.4);
             GEP.inner_lambda_evolve_double_crossover(0.2);
             GEP.inner_lambda_evolve_gene_crossover(0.1);
