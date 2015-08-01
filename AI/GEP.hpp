@@ -259,7 +259,6 @@ struct gene_experssion_program
                 else
                     assert(false);
             }
-            
         }
         Real eval(gene_experssion_program&GEP) const
         {
@@ -411,9 +410,6 @@ struct gene_experssion_program
         
         void single_crossover(int nCrossOver, gene&another)
         {
-            //for (int i=nCrossOver; i<N_DNAs; i++)
-            //    std::swap(DNAs[i], another.DNAs[i]);
-            
             crossover_single(nCrossOver, DNAs, DNAs+N_DNAs, another.DNAs);
         }
         void evolve_single_crossover(Real probability, gene&another)
@@ -427,8 +423,6 @@ struct gene_experssion_program
         }
         void double_crossover(int nCrossOver, int nLength, gene&another)
         {
-            //for (int i=nCrossOver; i<nCrossOver+nLength && i<N_DNAs; i++)
-            //    std::swap(DNAs[i], another.DNAs[i]);
             crossover_double(nCrossOver, nLength, DNAs, DNAs+N_DNAs, another.DNAs);
         }
         void evolve_double_crossover(Real probability, gene&another)
@@ -532,6 +526,13 @@ struct gene_experssion_program
         size_t _size = 0;
         node_ptr children[N_maxargs];
     public:
+        size_t size_of_children_recursive()
+        {
+            size_t nSize = size_of_children();
+            for (size_t i=0; i<size_of_children(); i++)
+                nSize += children[i]->size_of_children_recursive();
+            return nSize;
+        }
         size_t size_of_children() { return this->_size; }
         void add_children(node_ptr&ptr)
         {
@@ -587,6 +588,8 @@ struct gene_experssion_program
     
     std::function<Real(const Unit&)> lambda_fitness;// 适应度函数
     
+    std::function<void(const std::function<void(Unit&unit, Real fitness)>&)> inner_lambda_foreach_unit;// 遍历所有的
+    
     std::function<void(functions_and_terminals_t&ft)> inner_lambda_random_initialize;// 随机初始化
     std::function<std::pair<Real, Unit>()> inner_lambda_fitness_compute; // 适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
@@ -630,6 +633,12 @@ struct gene_experssion_program
         
         auto local = std::shared_ptr<Local>(new Local());
         
+        inner_lambda_foreach_unit = [local](const std::function<void(Unit&unit, Real fitness)>&f)
+        {
+            for (int i=0; i<N_units; i++)
+                f(local->units[i], local->fitnesses[i]);
+        };
+        
         inner_lambda_random_initialize = [local](functions_and_terminals_t&ft)
         {
             for(int i = 0; i<N_units; i++)
@@ -665,33 +674,6 @@ struct gene_experssion_program
         inner_lambda_selection_roulette_wheel = [local]()
         {
             Real probabilityOfAccum[N_units];
-//            Real totalFitness = 0.0;
-//            
-//            for(int i = 0; i<N_units; i++)
-//                totalFitness += local->fitnesses[i];
-//            
-//            Real accumProbability = 0.0;
-//            for(int i = 0; i<N_units; i++)
-//            {
-//                Real p = local->fitnesses[i]/totalFitness;
-//                accumProbability += p;
-//                probabilityOfAccum[i] = accumProbability;
-//            }
-//            
-//            
-//            Unit*buffer_units = local->buffer_units();
-//            Real p = static_cast<Real>(std::rand())/RAND_MAX;
-//
-//            for (int i=0; i<N_units; i++)
-//            {
-//                for (int j=0;j<N_units;j++)
-//                {
-//                    if(p <= probabilityOfAccum[j])
-//                    {
-//                        buffer_units[i] = local->units[j];
-//                    }
-//                }
-//            }
             selection_roulette_wheel(local->units, local->units+N_units,
                                      local->fitnesses, probabilityOfAccum,
                                      local->buffer_units(), local->random);
@@ -925,7 +907,7 @@ int main(int argc, const char*argv[])
     // 开始进行完整的GEP运算
     {
         typedef gene_experssion_program<
-        /*int N_units          */100,
+        /*int N_units          */200,
         /*int N_genes          */3,
         /*int N_headers        */8,
         /*int N_maxargs        */2,
@@ -942,11 +924,14 @@ int main(int argc, const char*argv[])
         GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
         GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
         auto y = [](Real a){ return a*a/2 + 3*a;/* 目标方程 */ };
+        std::function<bool(Real)> is_find_result_successfully;
 //        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
 //        {
 //            Real sum = 0.0;
-//            for(Real x = -10.0; x<10.0; x += 1.0)
+//            Real x = -10.0;
+//            for(int i=0; i<10; i++)
 //            {
+//                x += 1.0;
 //                variables[a] = x;// 为了unit执行求值，需要先赋予变量值
 //                Real yx = y(x);
 //                Real ex = unit.eval(GEP);
@@ -957,12 +942,16 @@ int main(int argc, const char*argv[])
 //                if (std::isinf(dy))
 //                    dy = 0;
 //                
-//                const Real M = 100000000;
+//                const Real M = 100;
 //                assert(dy <= M);
 //                
 //                sum += M-dy;
 //            }
 //            return sum;
+//        };
+//        is_find_result_successfully = [](Real fitness)
+//        {
+//            return std::abs(fitness - 100*10)<1e-6;
 //        };
         
         GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
@@ -976,17 +965,18 @@ int main(int argc, const char*argv[])
                 Real ex = unit.eval(GEP);
                 
                 if (std::isnan(ex) || std::isinf(ex))
-                {
                     return 0.0;
-                    break;
-                }
                 
-                Real dy = std::abs(yx - ex);
+                Real dy = yx - ex;
                 sum += dy*dy;
             }
             Real E = sum/nCount;
             
             return 1000*1/(1+E);
+        };
+        is_find_result_successfully = [](Real fitness)
+        {
+            return std::abs(fitness - 1000)<1e-6;
         };
         
         GEP.inner_lambda_random_initialize(functions_and_terminals);
@@ -1024,6 +1014,20 @@ int main(int argc, const char*argv[])
                     std::cout<<"i = "<<i<<std::endl;
                 }
             }
+            if (is_find_result_successfully(bestFitness))
+            {
+                std::cout<<"结果已经找到，计算结束!"<<std::endl;
+                GEP.inner_lambda_foreach_unit([bestFitness,&GEP](Unit&unit, Real fitness){
+                    if (std::abs(fitness - bestFitness) < 1e-5)
+                    {
+                        unit.dump(std::cout, true);
+                        unit.dump_tree(std::cout, GEP);
+                    }
+                });
+                break;// 已经找到了结果
+            }
+            
+            
             GEP.inner_lambda_selection_roulette_wheel();
             GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
             GEP.inner_lambda_evolve_reverse(0.1);
