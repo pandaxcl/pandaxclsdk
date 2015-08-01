@@ -760,6 +760,7 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 
 #if TEST_WITH_MAIN_FOR_GEP_HPP
 #include <map>
+#include <set>
 #include <iostream>
 int main(int argc, const char*argv[])
 {
@@ -908,7 +909,7 @@ int main(int argc, const char*argv[])
     {
         typedef gene_experssion_program<
         /*int N_units          */200,
-        /*int N_genes          */3,
+        /*int N_genes          */4,
         /*int N_headers        */8,
         /*int N_maxargs        */2,
         /*int N_ops            */N_ops,
@@ -923,7 +924,7 @@ int main(int argc, const char*argv[])
         GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
         GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
         GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
-        auto y = [](Real a){ return a*a/2 + 3*a;/* 目标方程 */ };
+        auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
         std::function<bool(Real)> is_find_result_successfully;
 //        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
 //        {
@@ -1017,13 +1018,19 @@ int main(int argc, const char*argv[])
             if (is_find_result_successfully(bestFitness))
             {
                 std::cout<<"结果已经找到，计算结束!"<<std::endl;
-                GEP.inner_lambda_foreach_unit([bestFitness,&GEP](Unit&unit, Real fitness){
+                // 下面的算法确保输出不重复的结果
+                std::set<Unit*> bestUnits;
+                GEP.inner_lambda_foreach_unit([bestFitness,&GEP,&bestUnits](Unit&unit, Real fitness){
                     if (std::abs(fitness - bestFitness) < 1e-5)
                     {
-                        unit.dump(std::cout, true);
-                        unit.dump_tree(std::cout, GEP);
+                        bestUnits.insert(&unit);
                     }
                 });
+                for (auto&unit:bestUnits)
+                {
+                    unit->dump(std::cout, true);
+                    unit->dump_tree(std::cout, GEP);
+                }
                 break;// 已经找到了结果
             }
             
