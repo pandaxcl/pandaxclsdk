@@ -8,6 +8,72 @@
 #include <sstream>
 #include <iostream>
 
+template<typename ForwardIterator>
+void crossover_single(typename std::iterator_traits<ForwardIterator>::difference_type nCrossOver,
+                      ForwardIterator begin1, ForwardIterator end1, ForwardIterator begin2)
+{
+    typedef typename std::iterator_traits<ForwardIterator>::difference_type difference_type;
+    ForwardIterator it1 = begin1;
+    ForwardIterator it2 = begin2;
+    std::advance(it1, nCrossOver);
+    std::advance(it2, nCrossOver);
+    for (;it1 != end1;it1++, it2++)
+        std::swap(*it1, *it2);
+}
+template<typename ForwardIterator>
+void crossover_double(typename std::iterator_traits<ForwardIterator>::difference_type nCrossOver,
+                      typename std::iterator_traits<ForwardIterator>::difference_type nLength,
+                      ForwardIterator begin1, ForwardIterator end1, ForwardIterator begin2)
+{
+    typedef typename std::iterator_traits<ForwardIterator>::difference_type difference_type;
+    ForwardIterator it1 = begin1;ForwardIterator it1_end = begin1;
+    ForwardIterator it2 = begin2;
+    std::advance(it1, nCrossOver);std::advance(it1_end, nCrossOver+nLength);
+    std::advance(it2, nCrossOver);
+    for(;it1 != it1_end && it1 != end1; it1++, it2++)
+        std::swap(*it1, *it2);
+}
+
+template<typename UnitForwardIterator, typename RealForwardIterator, typename RandomGenerator=std::default_random_engine>
+void selection_roulette_wheel(UnitForwardIterator beginUnits, UnitForwardIterator endUnits,
+                              RealForwardIterator beginFitness, RealForwardIterator beginAccum,
+                              UnitForwardIterator beginNextUnits, RandomGenerator&randomGenerator)
+{
+    typedef typename std::iterator_traits<UnitForwardIterator>::difference_type difference_type;
+    typedef typename std::iterator_traits<RealForwardIterator>::value_type Real;
+    difference_type N_units = std::distance(beginUnits, endUnits);
+    Real totalFitness = 0.0;
+    
+    RealForwardIterator endFitness = beginFitness; std::advance(endFitness, N_units);
+    UnitForwardIterator endNextUnits = beginNextUnits; std::advance(endNextUnits, N_units);
+//    RealForwardIterator endAccum = beginAccum; std::advance(endAccum, N_units);
+
+    for (RealForwardIterator it=beginFitness; it!=endFitness; it++)
+        totalFitness += *it;
+    
+    Real accumProbability = 0.0;
+    for (RealForwardIterator it=beginFitness, itAccum=beginAccum; it!=endFitness; it++,itAccum++)
+    {
+        Real p = *it/totalFitness;
+        accumProbability += p;
+        *itAccum = accumProbability;
+    }
+
+    for (UnitForwardIterator i=beginNextUnits;i!=endNextUnits; /* i++ */)
+    {
+        Real p = static_cast<Real>(randomGenerator())/RandomGenerator::max();
+        RealForwardIterator itAccum=beginAccum;
+        for (UnitForwardIterator j=beginUnits;j!=endUnits;j++,itAccum++)
+        {
+            if(p <= *itAccum)
+            {
+                *i = *j;
+                i++;
+                break;
+            }
+        }
+    }
+}
 
 template<typename DNA_encode=int, typename Real=double>
 struct gene_experssion_program_api
@@ -123,14 +189,20 @@ struct gene_experssion_program
                 assert(a <= N_maxargs);
                 for(int i=0;i<a;i++)
                 {
-                    //this->dump(std::cout, true);
-                    //T->dump(std::cout, 0);
+                    if (p >= N_DNAs)
+                    {
+                        this->dump(std::cout, true);
+                        T->dump(std::cout, 0);
+                    }
                     assert(p < N_DNAs);
                     auto m = node_ptr(new node(K[p]));
                     n->add_children(m);
                     p++;
                     Q.push(m);
-                    //std::cout<<"Q.size() = "<<Q.size()<<" N_maxops = "<<N_maxops<<" a = "<<a<<" p = "<<p<<std::endl;
+                    if (p > N_DNAs)
+                    {
+                        std::cout<<"Q.size() = "<<Q.size()<<" N_maxargs = "<<N_maxargs<<" a = "<<a<<" p = "<<p<<std::endl;
+                    }
                 }
             }
             return T;
@@ -336,10 +408,13 @@ struct gene_experssion_program
                 insert_string(nStart, nLength, nInsert);
             }
         }
+        
         void single_crossover(int nCrossOver, gene&another)
         {
-            for (int i=nCrossOver; i<N_DNAs; i++)
-                std::swap(DNAs[i], another.DNAs[i]);
+            //for (int i=nCrossOver; i<N_DNAs; i++)
+            //    std::swap(DNAs[i], another.DNAs[i]);
+            
+            crossover_single(nCrossOver, DNAs, DNAs+N_DNAs, another.DNAs);
         }
         void evolve_single_crossover(Real probability, gene&another)
         {
@@ -352,8 +427,9 @@ struct gene_experssion_program
         }
         void double_crossover(int nCrossOver, int nLength, gene&another)
         {
-            for (int i=nCrossOver; i<nCrossOver+nLength && i<N_DNAs; i++)
-                std::swap(DNAs[i], another.DNAs[i]);
+            //for (int i=nCrossOver; i<nCrossOver+nLength && i<N_DNAs; i++)
+            //    std::swap(DNAs[i], another.DNAs[i]);
+            crossover_double(nCrossOver, nLength, DNAs, DNAs+N_DNAs, another.DNAs);
         }
         void evolve_double_crossover(Real probability, gene&another)
         {
@@ -442,8 +518,9 @@ struct gene_experssion_program
             Real p = static_cast<Real>(std::rand())/static_cast<Real>(RAND_MAX);
             if (p <= probability)
             {
-                int nCrossOver = std::rand()%(gene::N_headers+gene::N_tails);
-                std::swap(genes[nCrossOver], another.genes[nCrossOver]);
+                int nCrossOver = std::rand()%N_genes;
+                crossover_single(nCrossOver, genes, genes+N_genes, another.genes);
+                //std::swap(genes[nCrossOver], another.genes[nCrossOver]);
             }
         }
     };
@@ -530,10 +607,11 @@ struct gene_experssion_program
             Unit __units_back[N_units];
             Real fitnesses[N_units];
             //int F_T[N_functions+N_terminals];
-            
+            std::default_random_engine random;
             Local()
             {
                 units = __units_back;
+                //random.seed(static_cast<unsigned int>(time(nullptr)));
             }
             inline Unit*current_units()
             {
@@ -587,34 +665,36 @@ struct gene_experssion_program
         inner_lambda_selection_roulette_wheel = [local]()
         {
             Real probabilityOfAccum[N_units];
-            Real totalFitness = 0.0;
-            
-            for(int i = 0; i<N_units; i++)
-                totalFitness += local->fitnesses[i];
-            
-            Real accumProbability = 0.0;
-            for(int i = 0; i<N_units; i++)
-            {
-                Real p = local->fitnesses[i]/totalFitness;
-                accumProbability += p;
-                probabilityOfAccum[i] = accumProbability;
-            }
-            
-            
-            Unit*buffer_units = local->buffer_units();
-            Real p = static_cast<Real>(std::rand())/RAND_MAX;
-
-            for (int i=0; i<N_units; i++)
-            {
-                for (int j=0;j<N_units;j++)
-                {
-                    if(p <= probabilityOfAccum[j])
-                    {
-                        buffer_units[i] = local->units[j];
-                    }
-                }
-            }
-            
+//            Real totalFitness = 0.0;
+//            
+//            for(int i = 0; i<N_units; i++)
+//                totalFitness += local->fitnesses[i];
+//            
+//            Real accumProbability = 0.0;
+//            for(int i = 0; i<N_units; i++)
+//            {
+//                Real p = local->fitnesses[i]/totalFitness;
+//                accumProbability += p;
+//                probabilityOfAccum[i] = accumProbability;
+//            }
+//            
+//            
+//            Unit*buffer_units = local->buffer_units();
+//            Real p = static_cast<Real>(std::rand())/RAND_MAX;
+//
+//            for (int i=0; i<N_units; i++)
+//            {
+//                for (int j=0;j<N_units;j++)
+//                {
+//                    if(p <= probabilityOfAccum[j])
+//                    {
+//                        buffer_units[i] = local->units[j];
+//                    }
+//                }
+//            }
+            selection_roulette_wheel(local->units, local->units+N_units,
+                                     local->fitnesses, probabilityOfAccum,
+                                     local->buffer_units(), local->random);
             local->swap_units();
         };
         
@@ -677,13 +757,19 @@ struct gene_experssion_program
                 a.evolve_double_crossover(probability, b);
             });
         };
-        inner_lambda_evolve_gene_crossover = [local,crossover](Real probability)
+        
+        inner_lambda_evolve_gene_crossover = [local,crossover,this](Real probability)
         {
-//            crossover(probability, [](Real probability, Unit&a, Unit&b){
-//                a.evolve_gene_crossover(probability, b);
-//            });
+            crossover(probability, [this](Real probability, Unit&a, Unit&b){
+                this->__evolve_gene_crossover(probability, a, b);
+            });
         };
     }
+    inline void __evolve_gene_crossover(Real probability, chromosome&a, chromosome&b)
+    {
+        a.evolve_gene_crossover(probability, b);
+    }
+    inline void __evolve_gene_crossover(Real probability, gene&a, gene&b) { }
 };
 
 /***************************************************
@@ -883,7 +969,7 @@ int main(int argc, const char*argv[])
         {
             Real sum = 0.0;
             int nCount = 0;
-            for(Real x = -10.0; x<10.0; x += 1.0/100, nCount++)
+            for(Real x = -10.0; x<10.0; x += 1.0/20, nCount++)
             {
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
@@ -934,7 +1020,7 @@ int main(int argc, const char*argv[])
                         report();
                     }
                 }
-                if (0 == i%50) {
+                if (0 == i%10) {
                     std::cout<<"i = "<<i<<std::endl;
                 }
             }
