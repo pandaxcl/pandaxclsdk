@@ -50,9 +50,9 @@ struct gene_experssion_program_api
 
 
 template<
-    int N_units,
-    int N_genes,
-    int N_headers,
+    int _N_units,
+    int _N_genes,
+    int _N_headers,
     int N_maxargs,
     int N_ops,
     typename T_DNA_encode=int,
@@ -62,6 +62,13 @@ struct gene_experssion_program
 {
     typedef T_Real Real;
     typedef T_DNA_encode DNA_encode;
+    enum
+    {
+        N_units = _N_units,
+        N_genes = _N_genes,
+        N_headers = _N_headers,
+        N_tails = N_headers*(N_maxargs-1)+1,
+    };
     class node;
     typedef std::shared_ptr<node> node_ptr;
     typedef typename gene_experssion_program_api<DNA_encode,Real>::template functions_and_terminals_t<N_ops> functions_and_terminals_t;
@@ -91,7 +98,6 @@ struct gene_experssion_program
         friend chromosome;
         enum
         {
-            N_tails = N_headers*(N_maxargs-1)+1,
             N_DNAs = N_headers+N_tails,
         };
 
@@ -525,7 +531,7 @@ struct gene_experssion_program
     std::function<void(const std::function<void(Unit&unit, Real fitness)>&)> inner_lambda_foreach_unit;// 遍历所有的
     
     std::function<void(functions_and_terminals_t&ft)> inner_lambda_random_initialize;// 随机初始化
-    std::function<std::pair<Real, Unit>()> inner_lambda_fitness_compute; // 适应度计算
+    std::function<std::pair<Real, Unit>(int nBegin, int nEnd)> inner_lambda_fitness_compute; // 适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     std::function<void(Real probability, functions_and_terminals_t&ft)> inner_lambda_evolve_mutation;// 标准变异过程
     std::function<void(Real probability)> inner_lambda_evolve_reverse;
@@ -581,14 +587,14 @@ struct gene_experssion_program
             }
         };
         
-        inner_lambda_fitness_compute = [local,this]()
+        inner_lambda_fitness_compute = [local,this](int nBegin, int nEnd)
         {
             Real bestFitness = 0;
             int bestIndex = 0;
-            for(int i = 0; i<N_units; i++)
+            for(int i = nBegin; i<nEnd; i++)
             {
                 local->fitnesses[i] = this->lambda_fitness(local->units[i]);
-                if (0 == i)
+                if (nBegin == i)
                 {
                     bestFitness = local->fitnesses[i];
                     bestIndex = i;
@@ -696,6 +702,8 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 #include <map>
 #include <set>
 #include <iostream>
+//#include <xdispatch/dispatch.h>
+#include <dispatch/dispatch.h>
 int main(int argc, const char*argv[])
 {
     std::srand((unsigned int)time(nullptr));
@@ -893,7 +901,7 @@ int main(int argc, const char*argv[])
         {
             Real sum = 0.0;
             int nCount = 0;
-            for(Real x = -10.0; x<10.0; x += 1.0/20, nCount++)
+            for(Real x = -10.0; x<10.0; x += 1.0/10, nCount++)
             {
                 variables[a] = x;// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
@@ -919,11 +927,12 @@ int main(int argc, const char*argv[])
         Unit bestUnit;
         for (int i=0; i<2000; i++)
         {
-            auto best = GEP.inner_lambda_fitness_compute();
+#if 1
+            auto best = GEP.inner_lambda_fitness_compute(0, GEP_t::N_units);
             {
                 Real fitness = best.first;
                 auto unit = best.second;
-                
+
                 auto report = [&]()
                 {
                     std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
@@ -949,6 +958,28 @@ int main(int argc, const char*argv[])
                     std::cout<<"i = "<<i<<std::endl;
                 }
             }
+#else
+            const int G = 10;
+            assert(0 == GEP_t::N_units%G);
+            struct Local
+            {
+                Local(GEP_t&_GEP):GEP(_GEP){}
+                Real bestFitness[GEP_t::N_units/G] = {0};
+                Unit bestUnits[GEP_t::N_units/G];
+                GEP_t&GEP;
+            };
+            auto local = std::shared_ptr<Local>(new Local(GEP));
+            //auto local = std::make_shared<Local>(new Local(/*GEP*/));
+            dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
+            dispatch_apply(GEP_t::N_units/G, queue, ^(size_t i) {
+                auto best = local->GEP.inner_lambda_fitness_compute(i*G, (i+1)*G);
+                local->bestFitness[i] = best.first;
+                local->bestUnits[i] = best.second;
+            });
+            bestFitness = std::max(bestFitness, *std::max_element(local->bestFitness, local->bestFitness+GEP_t::N_units/G));
+            if (0 == i%10)std::cout<<"bestFitness = "<<bestFitness<<std::endl;
+#endif
+
             if (is_find_result_successfully(bestFitness))
             {
                 std::cout<<"结果已经找到，计算结束!"<<std::endl;
