@@ -15,6 +15,19 @@ void crossover_single(typename std::iterator_traits<ForwardIterator>::difference
         std::swap(*it1, *it2);
 }
 template<typename ForwardIterator>
+void crossover_single(typename std::iterator_traits<ForwardIterator>::difference_type nCrossOver,
+                      ForwardIterator begin1, ForwardIterator end1, ForwardIterator begin2,
+                      std::function<void(typename std::iterator_traits<ForwardIterator>::reference, typename std::iterator_traits<ForwardIterator>::reference)>&swap)
+{
+    typedef typename std::iterator_traits<ForwardIterator>::difference_type difference_type;
+    ForwardIterator it1 = begin1;
+    ForwardIterator it2 = begin2;
+    std::advance(it1, nCrossOver);
+    std::advance(it2, nCrossOver);
+    for (;it1 != end1;it1++, it2++)
+        swap(*it1, *it2);
+}
+template<typename ForwardIterator>
 void crossover_double(typename std::iterator_traits<ForwardIterator>::difference_type nCrossOver,
                       typename std::iterator_traits<ForwardIterator>::difference_type nLength,
                       ForwardIterator begin1, ForwardIterator end1, ForwardIterator begin2)
@@ -26,6 +39,20 @@ void crossover_double(typename std::iterator_traits<ForwardIterator>::difference
     std::advance(it2, nCrossOver);
     for(;it1 != it1_end && it1 != end1; it1++, it2++)
         std::swap(*it1, *it2);
+}
+template<typename ForwardIterator>
+void crossover_double(typename std::iterator_traits<ForwardIterator>::difference_type nCrossOver,
+                      typename std::iterator_traits<ForwardIterator>::difference_type nLength,
+                      ForwardIterator begin1, ForwardIterator end1, ForwardIterator begin2,
+                      std::function<void(typename std::iterator_traits<ForwardIterator>::reference, typename std::iterator_traits<ForwardIterator>::reference)>&swap)
+{
+    typedef typename std::iterator_traits<ForwardIterator>::difference_type difference_type;
+    ForwardIterator it1 = begin1;ForwardIterator it1_end = begin1;
+    ForwardIterator it2 = begin2;
+    std::advance(it1, nCrossOver);std::advance(it1_end, nCrossOver+nLength);
+    std::advance(it2, nCrossOver);
+    for(;it1 != it1_end && it1 != end1; it1++, it2++)
+        swap(*it1, *it2);
 }
 
 template<typename UnitForwardIterator, typename RealForwardIterator, typename RandomGenerator=std::default_random_engine>
