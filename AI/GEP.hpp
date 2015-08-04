@@ -200,10 +200,10 @@ struct gene_experssion_program
                     assert(false);
             }
         }
-        Real eval(gene_experssion_program&GEP) const
+        Real eval(gene_experssion_program&GEP, int argc, Real argv[]) const
         {
             node_ptr root = to_tree(GEP);
-            return root->eval(GEP);
+            return root->eval(GEP, argc, argv);
         }
 
         void evolve_mutate(Real probability, const functions_and_terminals_t&ft)
@@ -406,11 +406,11 @@ struct gene_experssion_program
             for(auto&gene:genes)
                 gene.random_initialize(ft);
         }
-        Real eval(gene_experssion_program&GEP) const
+        Real eval(gene_experssion_program&GEP, int argc, Real argv[]) const
         {
             Real result = 0.0;
             for(auto&gene:genes)
-                result += gene.eval(GEP);
+                result += gene.eval(GEP, argc, argv);
             return result;
         }
 
@@ -509,12 +509,15 @@ struct gene_experssion_program
             return K;
         }
         
-        inline Real eval(gene_experssion_program&GEP)
+        inline Real eval(gene_experssion_program&GEP, int argc, Real argv[])
         {
             Real valuesOfChildren[N_maxargs];
             for(int i=0; i<this->size_of_children(); i++)
-                valuesOfChildren[i] = children[i]->eval(GEP);
+                valuesOfChildren[i] = children[i]->eval(GEP, argc, argv);
 
+            if (0 == size_of_children())// 对于值元素，求值方法和含有子节点的元素不一样，需要访问外部传入的变量值
+                return GEP.lambda_eval(this->f, argc, argv);
+                
             return GEP.lambda_eval(this->f, static_cast<int>(this->size_of_children()), valuesOfChildren);
         }
     };
@@ -531,7 +534,7 @@ struct gene_experssion_program
     std::function<void(const std::function<void(Unit&unit, Real fitness)>&)> inner_lambda_foreach_unit;// 遍历所有的
     
     std::function<void(functions_and_terminals_t&ft)> inner_lambda_random_initialize;// 随机初始化
-    std::function<std::pair<Real, Unit>(int nBegin, int nEnd)> inner_lambda_fitness_compute; // 适应度计算
+    std::function<std::pair<Real, Unit>(size_t nBegin, size_t nEnd)> inner_lambda_fitness_compute; // 适应度计算
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     std::function<void(Real probability, functions_and_terminals_t&ft)> inner_lambda_evolve_mutation;// 标准变异过程
     std::function<void(Real probability)> inner_lambda_evolve_reverse;
@@ -587,11 +590,11 @@ struct gene_experssion_program
             }
         };
         
-        inner_lambda_fitness_compute = [local,this](int nBegin, int nEnd)
+        inner_lambda_fitness_compute = [local,this](size_t nBegin, size_t nEnd)
         {
             Real bestFitness = 0;
-            int bestIndex = 0;
-            for(int i = nBegin; i<nEnd; i++)
+            size_t bestIndex = nBegin;
+            for(size_t i = nBegin; i<nEnd; i++)
             {
                 local->fitnesses[i] = this->lambda_fitness(local->units[i]);
                 if (nBegin == i)
@@ -715,14 +718,14 @@ int main(int argc, const char*argv[])
 
     
     const int a = 0;
-    Real variables[1] = {0.0};
+//    Real variables[1] = {0.0};
     
     gene_experssion_program_api<DNA_encode,Real>::operator_t ops[] = {
         {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}},
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
         {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}},
-        {'a', 0, [&variables](int argc, Real argv[]){return variables[a];}},
+        {'a', 0, [](int argc, Real argv[]){return argv[a];}},
     };
     
     const int N_ops = sizeof(ops)/sizeof(gene_experssion_program_api<DNA_encode,Real>::operator_t);
@@ -766,8 +769,9 @@ int main(int argc, const char*argv[])
             GEP_t::gene g("*a//+a+-aaaaaaaaa");
             auto root = g.to_tree(GEP);
             root->dump(std::cout, 0);
-            variables[a] = 0.5;
-            std::cout<<"g.eval(GEP) = "<<g.eval(GEP)<<std::endl;
+//            variables[a] = 0.5;
+            Real argv[] = {0.5};
+            std::cout<<"g.eval(GEP) = "<<g.eval(GEP, 1, argv)<<std::endl;
         }
         {
             {
@@ -897,15 +901,15 @@ int main(int argc, const char*argv[])
 //            return std::abs(fitness - 100*10)<1e-6;
 //        };
         
-        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
+        GEP.lambda_fitness = [&GEP,&y](const Unit&unit)->Real
         {
             Real sum = 0.0;
             int nCount = 0;
             for(Real x = -10.0; x<10.0; x += 1.0/10, nCount++)
             {
-                variables[a] = x;// 为了unit执行求值，需要先赋予变量值
+                Real argv[] = {x};// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
-                Real ex = unit.eval(GEP);
+                Real ex = unit.eval(GEP, 1, argv);
                 
                 if (std::isnan(ex) || std::isinf(ex))
                     return 0.0;
@@ -939,28 +943,21 @@ int main(int argc, const char*argv[])
                     unit.dump(std::cout, true);
                     unit.dump_tree(std::cout, GEP);
                 };
-                if (0 == i)
+
+                if (fitness > bestFitness)
                 {
                     bestFitness = fitness;
                     bestUnit = unit;
                     report();
                 }
-                else
-                {
-                    if (fitness > bestFitness)
-                    {
-                        bestFitness = fitness;
-                        bestUnit = unit;
-                        report();
-                    }
-                }
+                
                 if (0 == i%10) {
                     std::cout<<"i = "<<i<<std::endl;
                 }
             }
 #else
-            const int G = 10;
-            assert(0 == GEP_t::N_units%G);
+            const size_t G = 25;
+            static_assert(0 == GEP_t::N_units%G, "");
             struct Local
             {
                 Local(GEP_t&_GEP):GEP(_GEP){}
@@ -969,15 +966,13 @@ int main(int argc, const char*argv[])
                 GEP_t&GEP;
             };
             auto local = std::shared_ptr<Local>(new Local(GEP));
-            //auto local = std::make_shared<Local>(new Local(/*GEP*/));
-            dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0);
-            dispatch_apply(GEP_t::N_units/G, queue, ^(size_t i) {
+            dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
                 auto best = local->GEP.inner_lambda_fitness_compute(i*G, (i+1)*G);
                 local->bestFitness[i] = best.first;
                 local->bestUnits[i] = best.second;
             });
-            bestFitness = std::max(bestFitness, *std::max_element(local->bestFitness, local->bestFitness+GEP_t::N_units/G));
-            if (0 == i%10)std::cout<<"bestFitness = "<<bestFitness<<std::endl;
+            bestFitness = std::max(bestFitness, *std::max_element(local->bestFitness, local->bestFitness+sizeof(local->bestFitness)/sizeof(local->bestFitness[0])));
+            std::cout<<i<<" bestFitness = "<<bestFitness<<std::endl;
 #endif
 
             if (is_find_result_successfully(bestFitness))
