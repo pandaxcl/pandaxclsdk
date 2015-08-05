@@ -535,7 +535,13 @@ struct gene_experssion_program
     
     std::function<void(functions_and_terminals_t&ft)> inner_lambda_random_initialize;// 随机初始化
     std::function<std::pair<Real, Unit>(size_t nBegin, size_t nEnd)> inner_lambda_fitness_compute; // 适应度计算
+    
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
+    
+    std::function<void()> inner_lambda_selection_roulette_wheel_accumulate; // 轮盘赌计算开始，包括：概率累计值，提前生成随机数
+    std::function<void(size_t nBegin, size_t nEnd)> inner_lambda_selection_roulette_wheel_select; // 轮盘赌选择
+    std::function<void()> inner_lambda_selection_roulette_wheel_finish; // 轮盘赌选择结束
+    
     std::function<void(Real probability, functions_and_terminals_t&ft)> inner_lambda_evolve_mutation;// 标准变异过程
     std::function<void(Real probability)> inner_lambda_evolve_reverse;
     std::function<void(Real probability)> inner_lambda_evolve_insert_string;
@@ -553,6 +559,7 @@ struct gene_experssion_program
             Unit __units_back[N_units];
             Real fitnesses[N_units];
             //int F_T[N_functions+N_terminals];
+            Real probabilityOfAccum[N_units];
             std::default_random_engine random;
             Local()
             {
@@ -613,14 +620,34 @@ struct gene_experssion_program
             }
             return std::make_pair(bestFitness, local->units[bestIndex]);
         };
-        
-        inner_lambda_selection_roulette_wheel = [local]()
+        inner_lambda_selection_roulette_wheel_accumulate = [local]()
         {
-            Real probabilityOfAccum[N_units];
+            selection_roulette_wheel_accumulate(local->fitnesses, local->fitnesses+N_units, local->probabilityOfAccum);
+        };
+        inner_lambda_selection_roulette_wheel_select = [local](size_t nBegin, size_t nEnd)
+        {
+            auto random = std::default_random_engine(static_cast<unsigned int>(time(nullptr)));
+            selection_roulette_wheel_select(local->units+nBegin, local->units+nEnd,
+                                            local->fitnesses+nBegin, local->probabilityOfAccum+nBegin,
+                                            local->buffer_units()+nBegin, random);
+        };
+        inner_lambda_selection_roulette_wheel_finish = [local]()
+        {
+            local->swap_units();
+        };
+        
+        inner_lambda_selection_roulette_wheel = [local,this]()
+        {
+#if 1
+            this->inner_lambda_selection_roulette_wheel_accumulate();
+            this->inner_lambda_selection_roulette_wheel_select(0, N_units);
+            this->inner_lambda_selection_roulette_wheel_finish();
+#else
             selection_roulette_wheel(local->units, local->units+N_units,
-                                     local->fitnesses, probabilityOfAccum,
+                                     local->fitnesses, local->probabilityOfAccum,
                                      local->buffer_units(), local->random);
             local->swap_units();
+#endif
         };
         
         inner_lambda_evolve_mutation = [local](Real probability, functions_and_terminals_t&ft)
@@ -707,6 +734,10 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 #include <iostream>
 //#include <xdispatch/dispatch.h>
 #include <dispatch/dispatch.h>
+
+#define USE_FITNESS_DISPATCH_APPLY 1
+#define USE_SELECTION_DISPATCH_APPLY 1
+
 int main(int argc, const char*argv[])
 {
     std::srand((unsigned int)time(nullptr));
@@ -931,7 +962,7 @@ int main(int argc, const char*argv[])
         Unit bestUnit;
         for (int i=0; i<2000; i++)
         {
-#if 1
+#if !USE_FITNESS_DISPATCH_APPLY
             auto best = GEP.inner_lambda_fitness_compute(0, GEP_t::N_units);
             {
                 Real fitness = best.first;
@@ -956,23 +987,25 @@ int main(int argc, const char*argv[])
                 }
             }
 #else
-            const size_t G = 25;
-            static_assert(0 == GEP_t::N_units%G, "");
-            struct Local
             {
-                Local(GEP_t&_GEP):GEP(_GEP){}
-                Real bestFitness[GEP_t::N_units/G] = {0};
-                Unit bestUnits[GEP_t::N_units/G];
-                GEP_t&GEP;
-            };
-            auto local = std::shared_ptr<Local>(new Local(GEP));
-            dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
-                auto best = local->GEP.inner_lambda_fitness_compute(i*G, (i+1)*G);
-                local->bestFitness[i] = best.first;
-                local->bestUnits[i] = best.second;
-            });
-            bestFitness = std::max(bestFitness, *std::max_element(local->bestFitness, local->bestFitness+sizeof(local->bestFitness)/sizeof(local->bestFitness[0])));
-            std::cout<<i<<" bestFitness = "<<bestFitness<<std::endl;
+                const size_t G = 25;
+                static_assert(0 == GEP_t::N_units%G, "");
+                struct Local
+                {
+                    Local(GEP_t&_GEP):GEP(_GEP){}
+                    Real bestFitness[GEP_t::N_units/G] = {0};
+                    Unit bestUnits[GEP_t::N_units/G];
+                    GEP_t&GEP;
+                };
+                auto local = std::shared_ptr<Local>(new Local(GEP));
+                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                    auto best = local->GEP.inner_lambda_fitness_compute(i*G, (i+1)*G);
+                    local->bestFitness[i] = best.first;
+                    local->bestUnits[i] = best.second;
+                });
+                bestFitness = std::max(bestFitness, *std::max_element(local->bestFitness, local->bestFitness+sizeof(local->bestFitness)/sizeof(local->bestFitness[0])));
+                std::cout<<i<<" bestFitness = "<<bestFitness<<std::endl;
+            }
 #endif
 
             if (is_find_result_successfully(bestFitness))
@@ -994,8 +1027,26 @@ int main(int argc, const char*argv[])
                 break;// 已经找到了结果
             }
             
-            
+#if !USE_SELECTION_DISPATCH_APPLY
             GEP.inner_lambda_selection_roulette_wheel();
+#else
+            GEP.inner_lambda_selection_roulette_wheel_accumulate();
+            {
+                const size_t G = 25;
+                static_assert(0 == GEP_t::N_units%G, "");
+                struct Local
+                {
+                    Local(GEP_t&_GEP):GEP(_GEP){}
+                    GEP_t&GEP;
+                };
+                auto local = std::shared_ptr<Local>(new Local(GEP));
+                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                    local->GEP.inner_lambda_selection_roulette_wheel_select(i*G, (i+1)*G);
+                });
+            }
+            GEP.inner_lambda_selection_roulette_wheel_finish();
+            
+#endif
             GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
             GEP.inner_lambda_evolve_reverse(0.1);
 //            GEP.inner_lambda_evolve_insert_string(0.1);
