@@ -538,8 +538,8 @@ struct gene_experssion_program
     
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     
-    std::function<void()> inner_lambda_selection_roulette_wheel_accumulate; // 轮盘赌计算开始，包括：概率累计值，提前生成随机数
-    std::function<void(size_t nBegin, size_t nEnd)> inner_lambda_selection_roulette_wheel_select; // 轮盘赌选择
+    std::function<void()> inner_lambda_selection_roulette_wheel_start; // 轮盘赌计算开始，包括：概率累计值，提前生成随机数
+    std::function<void(size_t nBegin, size_t nEnd, size_t nSeed)> inner_lambda_selection_roulette_wheel_select; // 轮盘赌选择
     std::function<void()> inner_lambda_selection_roulette_wheel_finish; // 轮盘赌选择结束
     
     std::function<void(Real probability, functions_and_terminals_t&ft)> inner_lambda_evolve_mutation;// 标准变异过程
@@ -620,16 +620,15 @@ struct gene_experssion_program
             }
             return std::make_pair(bestFitness, local->units[bestIndex]);
         };
-        inner_lambda_selection_roulette_wheel_accumulate = [local]()
+        inner_lambda_selection_roulette_wheel_start = [local]()
         {
             selection_roulette_wheel_accumulate(local->fitnesses, local->fitnesses+N_units, local->probabilityOfAccum);
         };
-        inner_lambda_selection_roulette_wheel_select = [local](size_t nBegin, size_t nEnd)
+        inner_lambda_selection_roulette_wheel_select = [local](size_t nBegin, size_t nEnd, size_t nSeed)
         {
-            auto random = std::default_random_engine(static_cast<unsigned int>(time(nullptr)));
-            selection_roulette_wheel_select(local->units+nBegin, local->units+nEnd,
-                                            local->fitnesses+nBegin, local->probabilityOfAccum+nBegin,
-                                            local->buffer_units()+nBegin, random);
+            auto random = std::default_random_engine(static_cast<unsigned int>(nSeed));
+            selection_roulette_wheel_select(local->units, local->units+N_units, nEnd-nBegin, local->buffer_units()+nBegin,
+                                            local->probabilityOfAccum, random);
         };
         inner_lambda_selection_roulette_wheel_finish = [local]()
         {
@@ -639,8 +638,8 @@ struct gene_experssion_program
         inner_lambda_selection_roulette_wheel = [local,this]()
         {
 #if 1
-            this->inner_lambda_selection_roulette_wheel_accumulate();
-            this->inner_lambda_selection_roulette_wheel_select(0, N_units);
+            this->inner_lambda_selection_roulette_wheel_start();
+            this->inner_lambda_selection_roulette_wheel_select(0, N_units, time(nullptr));
             this->inner_lambda_selection_roulette_wheel_finish();
 #else
             selection_roulette_wheel(local->units, local->units+N_units,
@@ -1030,7 +1029,7 @@ int main(int argc, const char*argv[])
 #if !USE_SELECTION_DISPATCH_APPLY
             GEP.inner_lambda_selection_roulette_wheel();
 #else
-            GEP.inner_lambda_selection_roulette_wheel_accumulate();
+            GEP.inner_lambda_selection_roulette_wheel_start();
             {
                 const size_t G = 25;
                 static_assert(0 == GEP_t::N_units%G, "");
@@ -1038,10 +1037,11 @@ int main(int argc, const char*argv[])
                 {
                     Local(GEP_t&_GEP):GEP(_GEP){}
                     GEP_t&GEP;
+                    size_t nSeed = time(nullptr);
                 };
                 auto local = std::shared_ptr<Local>(new Local(GEP));
                 dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
-                    local->GEP.inner_lambda_selection_roulette_wheel_select(i*G, (i+1)*G);
+                    local->GEP.inner_lambda_selection_roulette_wheel_select(i*G, (i+1)*G, local->nSeed+i*G);
                 });
             }
             GEP.inner_lambda_selection_roulette_wheel_finish();

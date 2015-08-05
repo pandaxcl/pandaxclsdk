@@ -66,14 +66,11 @@ void selection_roulette_wheel_accumulate(RealForwardIterator beginFitness, RealF
 }
 
 template<typename UnitForwardIterator, typename RealForwardIterator, typename RandomGenerator=std::default_random_engine>
-void selection_roulette_wheel_select(UnitForwardIterator beginUnits, UnitForwardIterator endUnits,
-                              RealForwardIterator beginFitness, RealForwardIterator beginAccumProbility,
-                              UnitForwardIterator beginNextUnits, RandomGenerator&randomGenerator)
+void selection_roulette_wheel_select(UnitForwardIterator beginUnits, UnitForwardIterator endUnits, size_t n, UnitForwardIterator beginNextUnits,
+                                     RealForwardIterator beginAccumProbility, RandomGenerator&randomGenerator)
 {
-    typedef typename std::iterator_traits<RealForwardIterator>::difference_type difference_type;
     typedef typename std::iterator_traits<RealForwardIterator>::value_type Real;
-    difference_type N_units = std::distance(beginUnits, endUnits);
-    UnitForwardIterator endNextUnits = beginNextUnits; std::advance(endNextUnits, N_units);
+    UnitForwardIterator endNextUnits = beginNextUnits; std::advance(endNextUnits, n);
     for (UnitForwardIterator i=beginNextUnits;i!=endNextUnits; /* i++ */)
     {
         Real p = static_cast<Real>(randomGenerator())/RandomGenerator::max();
@@ -91,13 +88,12 @@ void selection_roulette_wheel_select(UnitForwardIterator beginUnits, UnitForward
 }
 
 template<typename UnitForwardIterator, typename RealForwardIterator, typename RandomGenerator=std::default_random_engine>
-void selection_roulette_wheel(UnitForwardIterator beginUnits, UnitForwardIterator endUnits,
-                              RealForwardIterator beginFitness, RealForwardIterator beginAccumProbility,
-                              UnitForwardIterator beginNextUnits, RandomGenerator&randomGenerator)
+void selection_roulette_wheel(UnitForwardIterator beginUnits, UnitForwardIterator endUnits, UnitForwardIterator beginNextUnits,
+                              RealForwardIterator beginFitness, RealForwardIterator beginAccumProbility, RandomGenerator&randomGenerator)
 {
     typedef typename std::iterator_traits<UnitForwardIterator>::difference_type difference_type;
     difference_type N_units = std::distance(beginUnits, endUnits);
     RealForwardIterator endFitness = beginFitness; std::advance(endFitness, N_units);
     selection_roulette_wheel_accumulate(beginFitness, endFitness, beginAccumProbility);
-    selection_roulette_wheel_select(beginUnits, endUnits, beginFitness, beginAccumProbility, beginNextUnits, randomGenerator);
+    selection_roulette_wheel_select(beginUnits, endUnits, N_units, beginNextUnits, beginAccumProbility, randomGenerator);
 }
