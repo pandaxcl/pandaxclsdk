@@ -394,11 +394,11 @@ struct gene_experssion_program
             if(moreReadable)
             {
                 for (auto&gene:genes)
-                    os << gene.header_string();
+                    os << gene.header_string() << " ";
                 os << std::endl;
             }
             for (auto&gene:genes)
-                os << gene.to_string();
+                os << gene.to_string() << " ";
             os << std::endl;
         }
         void random_initialize(functions_and_terminals_t&ft)
@@ -733,6 +733,7 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 #include <iostream>
 //#include <xdispatch/dispatch.h>
 #include <dispatch/dispatch.h>
+#include <thread>
 
 #define USE_FITNESS_DISPATCH_APPLY 1
 #define USE_SELECTION_DISPATCH_APPLY 1
@@ -742,6 +743,7 @@ int main(int argc, const char*argv[])
     std::srand((unsigned int)time(nullptr));
     //std::srand(199999);
     
+    std::cout<<"硬件可并行数量："<<std::thread::hardware_concurrency()<<std::endl;
     
     typedef double Real;
     typedef char DNA_encode;
@@ -755,7 +757,16 @@ int main(int argc, const char*argv[])
         {'-', 2, [](int argc, Real argv[]){return argv[0]-argv[1];}},
         {'*', 2, [](int argc, Real argv[]){return argv[0]*argv[1];}},
         {'/', 2, [](int argc, Real argv[]){return argv[0]/argv[1];}},
+        //{'^', 2, [](int argc, Real argv[]){return std::pow(argv[0],argv[1]);}},
+        
         {'a', 0, [](int argc, Real argv[]){return argv[a];}},
+        
+        {'0', 0, [](int argc, Real argv[]){return 0;}},
+        {'1', 0, [](int argc, Real argv[]){return 1;}},
+        {'2', 0, [](int argc, Real argv[]){return 2;}},
+        {'3', 0, [](int argc, Real argv[]){return 3;}},
+        {'5', 0, [](int argc, Real argv[]){return 5;}},
+        {'7', 0, [](int argc, Real argv[]){return 7;}},
     };
     
     const int N_ops = sizeof(ops)/sizeof(gene_experssion_program_api<DNA_encode,Real>::operator_t);
@@ -884,8 +895,8 @@ int main(int argc, const char*argv[])
     // 开始进行完整的GEP运算
     {
         typedef gene_experssion_program<
-        /*int N_units          */200,
-        /*int N_genes          */4,
+        /*int N_units          */100,
+        /*int N_genes          */3,
         /*int N_headers        */8,
         /*int N_maxargs        */2,
         /*int N_ops            */N_ops,
@@ -901,6 +912,7 @@ int main(int argc, const char*argv[])
         GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
         GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
         auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
+        //auto y = [](Real a){ return std::sin(a);/* 目标方程 */ };
         std::function<bool(Real)> is_find_result_successfully;
 //        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
 //        {
@@ -959,30 +971,28 @@ int main(int argc, const char*argv[])
         GEP.inner_lambda_random_initialize(functions_and_terminals);
         Real bestFitness = 0;
         Unit bestUnit;
+        auto report = [&GEP](Unit&unit, int i, Real fitness)
+        {
+            std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
+            unit.dump(std::cout, true);
+            unit.dump_tree(std::cout, GEP);
+        };
         for (int i=0; i<2000; i++)
         {
+            //if (0 == i%10)
+                std::cout<<"i = "<<i<<std::endl;
+            
 #if !USE_FITNESS_DISPATCH_APPLY
             auto best = GEP.inner_lambda_fitness_compute(0, GEP_t::N_units);
             {
                 Real fitness = best.first;
                 auto unit = best.second;
 
-                auto report = [&]()
-                {
-                    std::cout<<"~~~~~~~~~~~~~~~~~~~~ i = "<<i<<", best fitness = " << fitness <<" ~~~~~~~~~~~~~~~~~~~~~~~~"<<std::endl;
-                    unit.dump(std::cout, true);
-                    unit.dump_tree(std::cout, GEP);
-                };
-
                 if (fitness > bestFitness)
                 {
                     bestFitness = fitness;
                     bestUnit = unit;
-                    report();
-                }
-                
-                if (0 == i%10) {
-                    std::cout<<"i = "<<i<<std::endl;
+                    report(bestUnit, i, bestFitness);
                 }
             }
 #else
@@ -1002,8 +1012,14 @@ int main(int argc, const char*argv[])
                     local->bestFitness[i] = best.first;
                     local->bestUnits[i] = best.second;
                 });
-                bestFitness = std::max(bestFitness, *std::max_element(local->bestFitness, local->bestFitness+sizeof(local->bestFitness)/sizeof(local->bestFitness[0])));
-                std::cout<<i<<" bestFitness = "<<bestFitness<<std::endl;
+                auto it = std::max_element(local->bestFitness, local->bestFitness+sizeof(local->bestFitness)/sizeof(local->bestFitness[0]));
+                if (*it > bestFitness)
+                {
+                    bestFitness = *it;
+                    std::size_t index = std::distance(local->bestFitness, it);
+                    bestUnit = local->bestUnits[index];
+                    report(bestUnit, i, bestFitness);
+                }
             }
 #endif
 
@@ -1020,8 +1036,7 @@ int main(int argc, const char*argv[])
                 });
                 for (auto&unit:bestUnits)
                 {
-                    unit->dump(std::cout, true);
-                    unit->dump_tree(std::cout, GEP);
+                    report(*unit, i, bestFitness);
                 }
                 break;// 已经找到了结果
             }
@@ -1055,6 +1070,8 @@ int main(int argc, const char*argv[])
             GEP.inner_lambda_evolve_double_crossover(0.2);
             GEP.inner_lambda_evolve_gene_crossover(0.1);
         }
+        
+        report(bestUnit, -1, bestFitness);
     }
 	return 0;
 }
