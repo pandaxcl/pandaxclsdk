@@ -643,7 +643,7 @@ struct gene_experssion_program
         };
         inner_lambda_selection_roulette_wheel_concurrent_finish = [local]()
         {
-//            const size_t n = 1;
+//            const size_t n = 5;
 //            size_t pos[n] = {0};
 //            std::generate(pos, pos+n, [local](){ return local->random()%N_units; });
 //            selection_roulette_wheel_keep(local->units, local->units+N_units, n/* 保留适应度的前n名 */, local->buffer_units(),
@@ -766,9 +766,16 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 #include <map>
 #include <set>
 #include <iostream>
-//#include <xdispatch/dispatch.h>
-#include <dispatch/dispatch.h>
 #include <thread>
+
+void dispatch_apply(size_t n, std::function<void(size_t)> f)
+{
+    std::vector<std::thread> threads;
+    for (size_t i=0; i<n; i++)
+        threads.push_back(std::thread([f,i](){ f(i); }));
+    for (auto&thread:threads)
+        thread.join();
+}
 
 #define USE_FITNESS_DISPATCH_APPLY 1
 #define USE_SELECTION_DISPATCH_APPLY 1
@@ -931,7 +938,7 @@ int main(int argc, const char*argv[])
     {
         typedef gene_experssion_program<
         /*int N_units          */200,
-        /*int N_genes          */4,
+        /*int N_genes          */3,
         /*int N_headers        */8,
         /*int N_maxargs        */2,
         /*int N_ops            */N_ops,
@@ -946,9 +953,9 @@ int main(int argc, const char*argv[])
         GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
         GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
         GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
-        //auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
+        auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
         //auto y = [](Real a){ return std::sin(a);/* 目标方程 */ };
-        auto y = [](Real a){ return 5*a*a*a*a*a + 4*a*a*a*a + 3*a*a*a + 2*a*a + a + 1;/* 目标方程 */ };
+        //auto y = [](Real a){ return 5*a*a*a*a*a + 4*a*a*a*a + 3*a*a*a + 2*a*a + a + 1;/* 目标方程 */ };
         std::function<bool(Real)> is_find_result_successfully;
 //        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
 //        {
@@ -1043,11 +1050,12 @@ int main(int argc, const char*argv[])
                     GEP_t&GEP;
                 };
                 auto local = std::shared_ptr<Local>(new Local(GEP));
-                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
                     auto best = local->GEP.inner_lambda_fitness_compute(i*G, (i+1)*G);
                     local->bestFitness[i] = best.first;
                     local->bestUnits[i] = best.second;
                 });
+
                 auto it = std::max_element(local->bestFitness, local->bestFitness+sizeof(local->bestFitness)/sizeof(local->bestFitness[0]));
                 if (*it > bestFitness)
                 {
@@ -1091,7 +1099,7 @@ int main(int argc, const char*argv[])
                     size_t nSeed = time(nullptr);
                 };
                 auto local = std::shared_ptr<Local>(new Local(GEP));
-                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
                     local->GEP.inner_lambda_selection_roulette_wheel_concurrent(i*G, (i+1)*G, local->nSeed+i*G);
                 });
             }
@@ -1116,15 +1124,15 @@ int main(int argc, const char*argv[])
                     GEP_t&GEP;
                 };
                 auto local = std::shared_ptr<Local>(new Local(GEP));
-                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
                     local->GEP.inner_lambda_evolve_single_crossover_concurrent(0.4, i*G, (i+1)*G);
                 });
                 GEP.inner_lambda_evolve_single_crossover_concurrent_finish();
-                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
                     local->GEP.inner_lambda_evolve_double_crossover_concurrent(0.4, i*G, (i+1)*G);
                 });
                 GEP.inner_lambda_evolve_double_crossover_concurrent_finish();
-                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
                     local->GEP.inner_lambda_evolve_gene_crossover_concurrent(0.4, i*G, (i+1)*G);
                 });
                 GEP.inner_lambda_evolve_gene_crossover_concurrent_finish();
