@@ -88,7 +88,7 @@ void selection_roulette_wheel_select(UnitForwardIterator beginUnits, UnitForward
 }
 
 template<typename UnitForwardIterator, typename RealForwardIterator>
-void selection_roulette_wheel_keep(UnitForwardIterator beginUnits, UnitForwardIterator endUnits, size_t n, UnitForwardIterator beginNextUnits,
+void selection_roulette_wheel_keep(UnitForwardIterator beginUnits, UnitForwardIterator endUnits, size_t nKeep, UnitForwardIterator beginNextUnits,
                                    size_t pos[], RealForwardIterator beginFitness_willBeModifiedInThisFunction)
 {
     typedef typename std::iterator_traits<UnitForwardIterator>::difference_type difference_type;
@@ -98,37 +98,48 @@ void selection_roulette_wheel_keep(UnitForwardIterator beginUnits, UnitForwardIt
     RealForwardIterator beginFitness = beginFitness_willBeModifiedInThisFunction;
     RealForwardIterator endFitness = beginFitness; std::advance(endFitness, N);
     
-    UnitForwardIterator itNext = beginNextUnits;
-    for (size_t i=0; i<n; i++)
+    for (size_t i=0; i<nKeep; i++)
     {
-        size_t iMax = 0;
-        RealForwardIterator fitnessMax = beginFitness;
-        RealForwardIterator fitness = beginFitness;
-        for (size_t j=0; j<N; j++, fitness++)
-        {
-            if (*fitness > *fitnessMax)
-            {
-                fitnessMax = fitness;
-                iMax = j;
-            }
-        }
+        RealForwardIterator fitnessMax = std::max_element(beginFitness, endFitness);
+
         // 将已经提取出来的Unit对应的适应值置为0，这样下次就会选择次大适应值的Unit了
         *fitnessMax = static_cast<Real>(0);// 在这里修改了适应值
 
         // 执行保留操作，目前保留到下一代容器的开头部分
         difference_type m = std::distance(beginFitness, fitnessMax);
         UnitForwardIterator itSelect = beginUnits; std::advance(itSelect, m);
-        std::advance(itNext, pos[i]); *itNext = *itSelect;
+        UnitForwardIterator itNext = beginNextUnits;std::advance(itNext, pos[i]);
+        *itNext = *itSelect;
+    }
+}
+template<typename RandomGenerator>
+void selection_roulette_wheel_keep_generate_target_position(size_t N_keep, size_t pos[], size_t N_units, RandomGenerator&randomGenerator)
+{
+    for (size_t i=0; i<N_keep;)
+    {
+        size_t nPos = randomGenerator()%N_units;
+        if (pos+i == std::find(pos, pos+i, nPos))
+        {
+            pos[i] = nPos;
+            i++;
+        }
+        else continue;
     }
 }
 
 template<typename UnitForwardIterator, typename RealForwardIterator, typename RandomGenerator=std::default_random_engine>
 void selection_roulette_wheel(UnitForwardIterator beginUnits, UnitForwardIterator endUnits, UnitForwardIterator beginNextUnits,
-                              RealForwardIterator beginFitness, RealForwardIterator beginAccumProbility, RandomGenerator&randomGenerator)
+                              RealForwardIterator beginFitness, RealForwardIterator beginAccumProbility, RandomGenerator&randomGenerator,
+                              size_t N_keep, size_t pos[])
 {
     typedef typename std::iterator_traits<UnitForwardIterator>::difference_type difference_type;
     difference_type N_units = std::distance(beginUnits, endUnits);
     RealForwardIterator endFitness = beginFitness; std::advance(endFitness, N_units);
     selection_roulette_wheel_accumulate(beginFitness, endFitness, beginAccumProbility);
     selection_roulette_wheel_select(beginUnits, endUnits, N_units, beginNextUnits, beginAccumProbility, randomGenerator);
+    selection_roulette_wheel_keep_generate_target_position(N_keep, pos, N_units, randomGenerator);
+    selection_roulette_wheel_keep(beginUnits, endUnits, N_keep, beginNextUnits, pos, beginFitness);
 }
+
+
+

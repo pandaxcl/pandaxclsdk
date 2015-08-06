@@ -536,11 +536,11 @@ struct gene_experssion_program
     std::function<void(functions_and_terminals_t&ft)> inner_lambda_random_initialize;// 随机初始化
     std::function<std::pair<Real, Unit>(size_t nBegin, size_t nEnd)> inner_lambda_fitness_compute; // 适应度计算
     
-    std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
+    std::function<void(size_t N_keep)> inner_lambda_selection_roulette_wheel; // 轮盘赌
     
     std::function<void()> inner_lambda_selection_roulette_wheel_concurrent_start; // 轮盘赌计算开始，包括：概率累计值，提前生成随机数
     std::function<void(size_t nBegin, size_t nEnd, size_t nSeed)> inner_lambda_selection_roulette_wheel_concurrent; // 轮盘赌选择
-    std::function<void()> inner_lambda_selection_roulette_wheel_concurrent_finish; // 轮盘赌选择结束
+    std::function<void(size_t N_keep)> inner_lambda_selection_roulette_wheel_concurrent_finish; // 轮盘赌选择结束
     
     std::function<void(Real probability, functions_and_terminals_t&ft)> inner_lambda_evolve_mutation;// 标准变异过程
     std::function<void(Real probability)> inner_lambda_evolve_reverse;
@@ -635,32 +635,33 @@ struct gene_experssion_program
         {
             selection_roulette_wheel_accumulate(local->fitnesses, local->fitnesses+N_units, local->probabilityOfAccum);
         };
-        inner_lambda_selection_roulette_wheel_concurrent = [local](size_t nBegin, size_t nEnd/*, size_t nKeep*/, size_t nSeed)
+        inner_lambda_selection_roulette_wheel_concurrent = [local](size_t nBegin, size_t nEnd/*, size_t N_keep*/, size_t nSeed)
         {
             auto random = std::default_random_engine(static_cast<unsigned int>(nSeed));
             selection_roulette_wheel_select(local->units, local->units+N_units, nEnd-nBegin, local->buffer_units()+nBegin,
                                             local->probabilityOfAccum, random);
         };
-        inner_lambda_selection_roulette_wheel_concurrent_finish = [local]()
+        inner_lambda_selection_roulette_wheel_concurrent_finish = [local](size_t N_keep)
         {
-//            const size_t n = 5;
-//            size_t pos[n] = {0};
-//            std::generate(pos, pos+n, [local](){ return local->random()%N_units; });
-//            selection_roulette_wheel_keep(local->units, local->units+N_units, n/* 保留适应度的前n名 */, local->buffer_units(),
-//                                          pos, local->fitnesses/* 适应值在这个函数调用之后会被修改(保留的那几个) */);
+            size_t pos[N_units] = {0};
+            selection_roulette_wheel_keep_generate_target_position(N_keep, pos, N_units, local->random);
+            selection_roulette_wheel_keep(local->units, local->units+N_units, N_keep/* 保留适应度的前N_keep名 */, local->buffer_units(),
+                                          pos, local->fitnesses/* 适应值在这个函数调用之后会被修改(保留的那几个) */);
             local->swap_units();
         };
         
-        inner_lambda_selection_roulette_wheel = [local,this]()
+        inner_lambda_selection_roulette_wheel = [local,this](size_t N_keep)
         {
-#if 1
+#if 0
             this->inner_lambda_selection_roulette_wheel_concurrent_start();
             this->inner_lambda_selection_roulette_wheel_concurrent(0, N_units, time(nullptr));
-            this->inner_lambda_selection_roulette_wheel_concurrent_finish();
+            this->inner_lambda_selection_roulette_wheel_concurrent_finish(N_keep);
 #else
-            selection_roulette_wheel(local->units, local->units+N_units,
+            size_t pos[N_units] = {0};
+            selection_roulette_wheel_keep_generate_target_position(N_keep, pos, N_units, local->random);
+            selection_roulette_wheel(local->units, local->units+N_units, local->buffer_units(),
                                      local->fitnesses, local->probabilityOfAccum,
-                                     local->buffer_units(), local->random);
+                                     local->random, N_keep, pos);
             local->swap_units();
 #endif
         };
@@ -966,8 +967,9 @@ int main(int argc, const char*argv[])
         GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
         GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
         GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
-        auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
+        //auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
         //auto y = [](Real a){ return std::sin(a);/* 目标方程 */ };
+        auto y = [](Real a){ return 4*a*a*a*a + 3*a*a*a + 2*a*a + a + 1;/* 目标方程 */ };
         //auto y = [](Real a){ return 5*a*a*a*a*a + 4*a*a*a*a + 3*a*a*a + 2*a*a + a + 1;/* 目标方程 */ };
         std::function<bool(Real)> is_find_result_successfully;
 //        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
@@ -1003,7 +1005,7 @@ int main(int argc, const char*argv[])
         {
             Real sum = 0.0;
             int nCount = 0;
-            for(Real x = -10.0; x<10.0; x += 1.0/100, nCount++)
+            for(Real x = -10.0; x<10.0; x += 1.0/10, nCount++)
             {
                 Real argv[] = {x};// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
@@ -1112,7 +1114,7 @@ int main(int argc, const char*argv[])
                     local->GEP.inner_lambda_selection_roulette_wheel_concurrent(nBegin, nEnd, local->nSeed+i*100);
                 });
             }
-            GEP.inner_lambda_selection_roulette_wheel_concurrent_finish();
+            GEP.inner_lambda_selection_roulette_wheel_concurrent_finish(5);
             
 #endif
             GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
