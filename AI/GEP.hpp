@@ -777,6 +777,19 @@ void dispatch_apply(size_t n, std::function<void(size_t)> f)
         thread.join();
 }
 
+size_t dispatch_apply_range(size_t N, std::function<void(size_t i, size_t nBegin, size_t nEnd)> f)
+{
+    size_t n = std::thread::hardware_concurrency();
+    size_t G = N/n;
+    dispatch_apply(n, [f,N,n,G](size_t i) {
+        if (i == n-1)
+            f(i, i*G, N/* =(i+1)*G+N%n */);
+        else
+            f(i, i*G, (i+1)*G);
+    });
+    return G;
+}
+
 #define USE_FITNESS_DISPATCH_APPLY 1
 #define USE_SELECTION_DISPATCH_APPLY 1
 #define USE_CROSSOVER_DISPATCH_APPLY 1
@@ -1040,23 +1053,21 @@ int main(int argc, const char*argv[])
             }
 #else
             {
-                const size_t G = 25;
-                static_assert(0 == GEP_t::N_units%G, "");
                 struct Local
                 {
                     Local(GEP_t&_GEP):GEP(_GEP){}
-                    Real bestFitness[GEP_t::N_units/G] = {0};
-                    Unit bestUnits[GEP_t::N_units/G];
+                    Real bestFitness[GEP_t::N_units] = {0};
+                    Unit bestUnits[GEP_t::N_units];
                     GEP_t&GEP;
                 };
                 auto local = std::shared_ptr<Local>(new Local(GEP));
-                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
-                    auto best = local->GEP.inner_lambda_fitness_compute(i*G, (i+1)*G);
+                size_t G = dispatch_apply_range(GEP_t::N_units, [local](size_t i, size_t nBegin, size_t nEnd) {
+                    auto best = local->GEP.inner_lambda_fitness_compute(nBegin, nEnd);
                     local->bestFitness[i] = best.first;
                     local->bestUnits[i] = best.second;
                 });
 
-                auto it = std::max_element(local->bestFitness, local->bestFitness+sizeof(local->bestFitness)/sizeof(local->bestFitness[0]));
+                auto it = std::max_element(local->bestFitness, local->bestFitness+G);
                 if (*it > bestFitness)
                 {
                     bestFitness = *it;
@@ -1090,8 +1101,6 @@ int main(int argc, const char*argv[])
 #else
             GEP.inner_lambda_selection_roulette_wheel_concurrent_start();
             {
-                const size_t G = 25;
-                static_assert(0 == GEP_t::N_units%G, "");
                 struct Local
                 {
                     Local(GEP_t&_GEP):GEP(_GEP){}
@@ -1099,8 +1108,8 @@ int main(int argc, const char*argv[])
                     size_t nSeed = time(nullptr);
                 };
                 auto local = std::shared_ptr<Local>(new Local(GEP));
-                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
-                    local->GEP.inner_lambda_selection_roulette_wheel_concurrent(i*G, (i+1)*G, local->nSeed+i*G);
+                dispatch_apply_range(GEP_t::N_units, [local](size_t i, size_t nBegin, size_t nEnd) {
+                    local->GEP.inner_lambda_selection_roulette_wheel_concurrent(nBegin, nEnd, local->nSeed+i*100);
                 });
             }
             GEP.inner_lambda_selection_roulette_wheel_concurrent_finish();
@@ -1117,23 +1126,16 @@ int main(int argc, const char*argv[])
             GEP.inner_lambda_evolve_gene_crossover(0.1);
 #else 
             {
-                const size_t G = 25;
-                struct Local
-                {
-                    Local(GEP_t&_GEP):GEP(_GEP){}
-                    GEP_t&GEP;
-                };
-                auto local = std::shared_ptr<Local>(new Local(GEP));
-                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
-                    local->GEP.inner_lambda_evolve_single_crossover_concurrent(0.4, i*G, (i+1)*G);
+                dispatch_apply_range(GEP_t::N_units, [&GEP](size_t i, size_t nBegin, size_t nEnd) {
+                    GEP.inner_lambda_evolve_single_crossover_concurrent(0.4, nBegin, nEnd);
                 });
                 GEP.inner_lambda_evolve_single_crossover_concurrent_finish();
-                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
-                    local->GEP.inner_lambda_evolve_double_crossover_concurrent(0.4, i*G, (i+1)*G);
+                dispatch_apply_range(GEP_t::N_units, [&GEP](size_t i, size_t nBegin, size_t nEnd) {
+                    GEP.inner_lambda_evolve_double_crossover_concurrent(0.4, nBegin, nEnd);
                 });
                 GEP.inner_lambda_evolve_double_crossover_concurrent_finish();
-                dispatch_apply(GEP_t::N_units/G, [local](size_t i) {
-                    local->GEP.inner_lambda_evolve_gene_crossover_concurrent(0.4, i*G, (i+1)*G);
+                dispatch_apply_range(GEP_t::N_units, [&GEP](size_t i, size_t nBegin, size_t nEnd) {
+                    GEP.inner_lambda_evolve_gene_crossover_concurrent(0.4, nBegin, nEnd);
                 });
                 GEP.inner_lambda_evolve_gene_crossover_concurrent_finish();
             }
