@@ -87,6 +87,41 @@ void selection_roulette_wheel_select(UnitForwardIterator beginUnits, UnitForward
     }
 }
 
+template<typename UnitForwardIterator, typename RealForwardIterator>
+void selection_roulette_wheel_keep(UnitForwardIterator beginUnits, UnitForwardIterator endUnits, size_t n, UnitForwardIterator beginNextUnits,
+                                   size_t pos[], RealForwardIterator beginFitness_willBeModifiedInThisFunction)
+{
+    typedef typename std::iterator_traits<UnitForwardIterator>::difference_type difference_type;
+    typedef typename std::iterator_traits<RealForwardIterator>::value_type Real;
+    
+    const difference_type N = std::distance(beginUnits, endUnits);
+    RealForwardIterator beginFitness = beginFitness_willBeModifiedInThisFunction;
+    RealForwardIterator endFitness = beginFitness; std::advance(endFitness, N);
+    
+    UnitForwardIterator itNext = beginNextUnits;
+    for (size_t i=0; i<n; i++)
+    {
+        size_t iMax = 0;
+        RealForwardIterator fitnessMax = beginFitness;
+        RealForwardIterator fitness = beginFitness;
+        for (size_t j=0; j<N; j++, fitness++)
+        {
+            if (*fitness > *fitnessMax)
+            {
+                fitnessMax = fitness;
+                iMax = j;
+            }
+        }
+        // 将已经提取出来的Unit对应的适应值置为0，这样下次就会选择次大适应值的Unit了
+        *fitnessMax = static_cast<Real>(0);// 在这里修改了适应值
+
+        // 执行保留操作，目前保留到下一代容器的开头部分
+        difference_type m = std::distance(beginFitness, fitnessMax);
+        UnitForwardIterator itSelect = beginUnits; std::advance(itSelect, m);
+        std::advance(itNext, pos[i]); *itNext = *itSelect;
+    }
+}
+
 template<typename UnitForwardIterator, typename RealForwardIterator, typename RandomGenerator=std::default_random_engine>
 void selection_roulette_wheel(UnitForwardIterator beginUnits, UnitForwardIterator endUnits, UnitForwardIterator beginNextUnits,
                               RealForwardIterator beginFitness, RealForwardIterator beginAccumProbility, RandomGenerator&randomGenerator)

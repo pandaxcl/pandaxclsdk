@@ -538,9 +538,9 @@ struct gene_experssion_program
     
     std::function<void()> inner_lambda_selection_roulette_wheel; // 轮盘赌
     
-    std::function<void()> inner_lambda_selection_roulette_wheel_start; // 轮盘赌计算开始，包括：概率累计值，提前生成随机数
-    std::function<void(size_t nBegin, size_t nEnd, size_t nSeed)> inner_lambda_selection_roulette_wheel_select; // 轮盘赌选择
-    std::function<void()> inner_lambda_selection_roulette_wheel_finish; // 轮盘赌选择结束
+    std::function<void()> inner_lambda_selection_roulette_wheel_concurrent_start; // 轮盘赌计算开始，包括：概率累计值，提前生成随机数
+    std::function<void(size_t nBegin, size_t nEnd, size_t nSeed)> inner_lambda_selection_roulette_wheel_concurrent; // 轮盘赌选择
+    std::function<void()> inner_lambda_selection_roulette_wheel_concurrent_finish; // 轮盘赌选择结束
     
     std::function<void(Real probability, functions_and_terminals_t&ft)> inner_lambda_evolve_mutation;// 标准变异过程
     std::function<void(Real probability)> inner_lambda_evolve_reverse;
@@ -549,6 +549,17 @@ struct gene_experssion_program
     std::function<void(Real probability)> inner_lambda_evolve_single_crossover;
     std::function<void(Real probability)> inner_lambda_evolve_double_crossover;
     std::function<void(Real probability)> inner_lambda_evolve_gene_crossover;
+    
+    
+    std::function<void(Real probability, size_t nBegin, size_t nEnd)> inner_lambda_evolve_single_crossover_concurrent;
+    std::function<void()>inner_lambda_evolve_single_crossover_concurrent_finish;
+    
+    std::function<void(Real probability, size_t nBegin, size_t nEnd)> inner_lambda_evolve_double_crossover_concurrent;
+    std::function<void()>inner_lambda_evolve_double_crossover_concurrent_finish;
+    
+    std::function<void(Real probability, size_t nBegin, size_t nEnd)> inner_lambda_evolve_gene_crossover_concurrent;
+    std::function<void()>inner_lambda_evolve_gene_crossover_concurrent_finish;
+    
 
     gene_experssion_program()
     {
@@ -620,27 +631,32 @@ struct gene_experssion_program
             }
             return std::make_pair(bestFitness, local->units[bestIndex]);
         };
-        inner_lambda_selection_roulette_wheel_start = [local]()
+        inner_lambda_selection_roulette_wheel_concurrent_start = [local]()
         {
             selection_roulette_wheel_accumulate(local->fitnesses, local->fitnesses+N_units, local->probabilityOfAccum);
         };
-        inner_lambda_selection_roulette_wheel_select = [local](size_t nBegin, size_t nEnd, size_t nSeed)
+        inner_lambda_selection_roulette_wheel_concurrent = [local](size_t nBegin, size_t nEnd/*, size_t nKeep*/, size_t nSeed)
         {
             auto random = std::default_random_engine(static_cast<unsigned int>(nSeed));
             selection_roulette_wheel_select(local->units, local->units+N_units, nEnd-nBegin, local->buffer_units()+nBegin,
                                             local->probabilityOfAccum, random);
         };
-        inner_lambda_selection_roulette_wheel_finish = [local]()
+        inner_lambda_selection_roulette_wheel_concurrent_finish = [local]()
         {
+//            const size_t n = 1;
+//            size_t pos[n] = {0};
+//            std::generate(pos, pos+n, [local](){ return local->random()%N_units; });
+//            selection_roulette_wheel_keep(local->units, local->units+N_units, n/* 保留适应度的前n名 */, local->buffer_units(),
+//                                          pos, local->fitnesses/* 适应值在这个函数调用之后会被修改(保留的那几个) */);
             local->swap_units();
         };
         
         inner_lambda_selection_roulette_wheel = [local,this]()
         {
 #if 1
-            this->inner_lambda_selection_roulette_wheel_start();
-            this->inner_lambda_selection_roulette_wheel_select(0, N_units, time(nullptr));
-            this->inner_lambda_selection_roulette_wheel_finish();
+            this->inner_lambda_selection_roulette_wheel_concurrent_start();
+            this->inner_lambda_selection_roulette_wheel_concurrent(0, N_units, time(nullptr));
+            this->inner_lambda_selection_roulette_wheel_concurrent_finish();
 #else
             selection_roulette_wheel(local->units, local->units+N_units,
                                      local->fitnesses, local->probabilityOfAccum,
@@ -680,40 +696,59 @@ struct gene_experssion_program
             }
         };
         
-        auto crossover = [local](Real probability, const std::function<void(Real probability, Unit&a, Unit&b)>&f)
+        auto crossover = [local](Real probability, size_t nBegin, size_t nEnd, const std::function<void(Real probability, Unit&a, Unit&b)>&f)
         {
             Unit*currentUnits = local->current_units();
             Unit*bufferUnits = local->buffer_units();
-            for(int i=0; i<N_units; i+=2)
+            for(size_t i=nBegin; i<nEnd; i+=2)
             {
                 bufferUnits[i] = currentUnits[i];
                 bufferUnits[i+1] = currentUnits[i+1];
                 f(probability, bufferUnits[i], bufferUnits[i+1]);
             }
-            if (1 == N_units%2)// 如果是奇数个单位，那么就需要考虑最后一个单位的处理方式
+            if (1 == (nEnd-nBegin)%2)// 如果是奇数个单位，那么就需要考虑最后一个单位的处理方式，这就在遗传算法里面引入了幸运位置，也就是彩票喽
             {
-                bufferUnits[N_units-1] = currentUnits[N_units-1];// 最后一个直接进入下一代
+                bufferUnits[nEnd-1] = currentUnits[nEnd-1];// 最后一个直接进入下一代
             }
-            local->swap_units();
         };
-        inner_lambda_evolve_single_crossover = [local,crossover](Real probability)
+        inner_lambda_evolve_single_crossover_concurrent = [local,crossover](Real probability, size_t nBegin, size_t nEnd)
         {
-            crossover(probability, [](Real probability, Unit&a, Unit&b){
+            crossover(probability, nBegin, nEnd, [](Real probability, Unit&a, Unit&b){
                 a.evolve_single_crossover(probability, b);
             });
         };
-        inner_lambda_evolve_double_crossover = [local,crossover](Real probability)
+        inner_lambda_evolve_double_crossover_concurrent = [local,crossover](Real probability, size_t nBegin, size_t nEnd)
         {
-            crossover(probability, [](Real probability, Unit&a, Unit&b){
+            crossover(probability, nBegin, nEnd, [](Real probability, Unit&a, Unit&b){
                 a.evolve_double_crossover(probability, b);
             });
         };
         
-        inner_lambda_evolve_gene_crossover = [local,crossover,this](Real probability)
+        inner_lambda_evolve_gene_crossover_concurrent = [local,crossover,this](Real probability, size_t nBegin, size_t nEnd)
         {
-            crossover(probability, [this](Real probability, Unit&a, Unit&b){
+            crossover(probability, nBegin, nEnd, [this](Real probability, Unit&a, Unit&b){
                 this->__evolve_gene_crossover(probability, a, b);
             });
+        };
+        
+        inner_lambda_evolve_single_crossover_concurrent_finish = [local](){ local->swap_units(); };
+        inner_lambda_evolve_double_crossover_concurrent_finish = [local](){ local->swap_units(); };
+        inner_lambda_evolve_gene_crossover_concurrent_finish = [local](){ local->swap_units(); };
+        
+        inner_lambda_evolve_single_crossover = [local, this](Real probability)
+        {
+            this->inner_lambda_evolve_single_crossover_concurrent(probability, 0, N_units);
+            this->inner_lambda_evolve_single_crossover_concurrent_finish();
+        };
+        inner_lambda_evolve_double_crossover = [local, this](Real probability)
+        {
+            this->inner_lambda_evolve_double_crossover_concurrent(probability, 0, N_units);
+            this->inner_lambda_evolve_double_crossover_concurrent_finish();
+        };
+        inner_lambda_evolve_gene_crossover = [local, this](Real probability)
+        {
+            this->inner_lambda_evolve_gene_crossover_concurrent(probability, 0, N_units);
+            this->inner_lambda_evolve_gene_crossover_concurrent_finish();
         };
     }
     inline void __evolve_gene_crossover(Real probability, chromosome&a, chromosome&b)
@@ -737,6 +772,7 @@ g++ -std=c++11 -DTEST_WITH_MAIN_FOR_GEP_HPP=1 -x c++ %
 
 #define USE_FITNESS_DISPATCH_APPLY 1
 #define USE_SELECTION_DISPATCH_APPLY 1
+#define USE_CROSSOVER_DISPATCH_APPLY 1
 
 int main(int argc, const char*argv[])
 {
@@ -750,7 +786,6 @@ int main(int argc, const char*argv[])
 
     
     const int a = 0;
-//    Real variables[1] = {0.0};
     
     gene_experssion_program_api<DNA_encode,Real>::operator_t ops[] = {
         {'+', 2, [](int argc, Real argv[]){return argv[0]+argv[1];}},
@@ -895,8 +930,8 @@ int main(int argc, const char*argv[])
     // 开始进行完整的GEP运算
     {
         typedef gene_experssion_program<
-        /*int N_units          */100,
-        /*int N_genes          */3,
+        /*int N_units          */200,
+        /*int N_genes          */4,
         /*int N_headers        */8,
         /*int N_maxargs        */2,
         /*int N_ops            */N_ops,
@@ -911,8 +946,9 @@ int main(int argc, const char*argv[])
         GEP.lambda_is_terminal = [&is_terminal](DNA_encode DNA){return is_terminal(DNA);};
         GEP.lambda_is_function = [&is_function](DNA_encode DNA){return is_function(DNA);};
         GEP.lambda_eval = [&I,ops](DNA_encode DNA, int argc, Real argv[]){ return ops[I[DNA]].eval(argc, argv); };
-        auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
+        //auto y = [](Real a){ return a*a/2 + 3*a - 2/a;/* 目标方程 */ };
         //auto y = [](Real a){ return std::sin(a);/* 目标方程 */ };
+        auto y = [](Real a){ return 5*a*a*a*a*a + 4*a*a*a*a + 3*a*a*a + 2*a*a + a + 1;/* 目标方程 */ };
         std::function<bool(Real)> is_find_result_successfully;
 //        GEP.lambda_fitness = [&GEP,&variables,&y](const Unit&unit)->Real
 //        {
@@ -947,7 +983,7 @@ int main(int argc, const char*argv[])
         {
             Real sum = 0.0;
             int nCount = 0;
-            for(Real x = -10.0; x<10.0; x += 1.0/10, nCount++)
+            for(Real x = -10.0; x<10.0; x += 1.0/100, nCount++)
             {
                 Real argv[] = {x};// 为了unit执行求值，需要先赋予变量值
                 Real yx = y(x);
@@ -977,7 +1013,7 @@ int main(int argc, const char*argv[])
             unit.dump(std::cout, true);
             unit.dump_tree(std::cout, GEP);
         };
-        for (int i=0; i<2000; i++)
+        for (int i=0; i<5000; i++)
         {
             //if (0 == i%10)
                 std::cout<<"i = "<<i<<std::endl;
@@ -1044,7 +1080,7 @@ int main(int argc, const char*argv[])
 #if !USE_SELECTION_DISPATCH_APPLY
             GEP.inner_lambda_selection_roulette_wheel();
 #else
-            GEP.inner_lambda_selection_roulette_wheel_start();
+            GEP.inner_lambda_selection_roulette_wheel_concurrent_start();
             {
                 const size_t G = 25;
                 static_assert(0 == GEP_t::N_units%G, "");
@@ -1056,19 +1092,44 @@ int main(int argc, const char*argv[])
                 };
                 auto local = std::shared_ptr<Local>(new Local(GEP));
                 dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
-                    local->GEP.inner_lambda_selection_roulette_wheel_select(i*G, (i+1)*G, local->nSeed+i*G);
+                    local->GEP.inner_lambda_selection_roulette_wheel_concurrent(i*G, (i+1)*G, local->nSeed+i*G);
                 });
             }
-            GEP.inner_lambda_selection_roulette_wheel_finish();
+            GEP.inner_lambda_selection_roulette_wheel_concurrent_finish();
             
 #endif
             GEP.inner_lambda_evolve_mutation(0.044, functions_and_terminals);
             GEP.inner_lambda_evolve_reverse(0.1);
 //            GEP.inner_lambda_evolve_insert_string(0.1);
 //            GEP.inner_lambda_evolve_root_insert_string(0.1);
+            
+#if !USE_CROSSOVER_DISPATCH_APPLY
             GEP.inner_lambda_evolve_single_crossover(0.4);
             GEP.inner_lambda_evolve_double_crossover(0.2);
             GEP.inner_lambda_evolve_gene_crossover(0.1);
+#else 
+            {
+                const size_t G = 25;
+                struct Local
+                {
+                    Local(GEP_t&_GEP):GEP(_GEP){}
+                    GEP_t&GEP;
+                };
+                auto local = std::shared_ptr<Local>(new Local(GEP));
+                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                    local->GEP.inner_lambda_evolve_single_crossover_concurrent(0.4, i*G, (i+1)*G);
+                });
+                GEP.inner_lambda_evolve_single_crossover_concurrent_finish();
+                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                    local->GEP.inner_lambda_evolve_double_crossover_concurrent(0.4, i*G, (i+1)*G);
+                });
+                GEP.inner_lambda_evolve_double_crossover_concurrent_finish();
+                dispatch_apply(GEP_t::N_units/G, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+                    local->GEP.inner_lambda_evolve_gene_crossover_concurrent(0.4, i*G, (i+1)*G);
+                });
+                GEP.inner_lambda_evolve_gene_crossover_concurrent_finish();
+            }
+#endif
         }
         
         report(bestUnit, -1, bestFitness);
