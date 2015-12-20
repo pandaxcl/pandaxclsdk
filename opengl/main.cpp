@@ -6,37 +6,20 @@
 //  Copyright © 2015年 pandaxcl. All rights reserved.
 //
 
+#include "opengl.hpp"
 
-#define GLEW_STATIC
-#include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <iostream>
-
-void display();
 
 int main(int argc, const char * argv[]) {
     // insert code here...
-
-    glutInit(&argc, (char**)argv);
-    glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGBA);
-    
-    glutInitContextVersion(4, 3);
-    glutInitWindowSize(512, 512);
-    glutCreateWindow("Hello World");
-    
-    glewInit();
-    printf("GL_VERSION = %s\n", glGetString(GL_VERSION)) ;
-    glutDisplayFunc(display);
-    glutMainLoop();
+    for (int i=0; i<300; i++)
+    {
+        opengl(argc, argv)
+        .display([](opengl*self){
+            glClear(GL_COLOR_BUFFER_BIT);
+            glutWireTeapot(0.5);
+            glutSwapBuffers();
+        });
+    }
     
     return 0;
-}
-
-void display()
-{
-    glClear(GL_COLOR_BUFFER_BIT);
-    
-    glutWireTeapot(0.5);
-    
-    glutSwapBuffers();
 }
