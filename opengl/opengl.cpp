@@ -21,11 +21,9 @@ opengl::opengl(int argc, const char * argv[])
 
 opengl::~opengl()
 {
-    glutInitContextVersion(4, 1);
-    
     glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGBA);
     
-   
+	//glutInitContextVersion(4, 1);
     glutInitWindowSize(512, 512);
     this->_window = glutCreateWindow("Hello World");
     glutSetWindowData(this);
