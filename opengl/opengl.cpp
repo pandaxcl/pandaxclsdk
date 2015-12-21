@@ -11,6 +11,9 @@
 
 #include "opengl.hpp"
 
+#pragma comment(lib, "freeglut.lib")
+#pragma comment(lib, "glew32s.lib")
+
 opengl::opengl(int argc, const char * argv[])
 {
     glutInit(&argc, (char**)argv);
