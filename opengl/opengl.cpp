@@ -23,7 +23,10 @@ opengl::~opengl()
 {
     glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGBA);
     
-	//glutInitContextVersion(4, 1);
+//    glutInitContextVersion(4, 1);
+//    glutInitContextProfile(GLUT_CORE_PROFILE);
+//    glutInitContextFlags(GLUT_FORWARD_COMPATIBLE);
+    
     glutInitWindowSize(512, 512);
     this->_window = glutCreateWindow("Hello World");
     glutSetWindowData(this);
@@ -34,7 +37,21 @@ opengl::~opengl()
         std::cerr<<"Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
     }
     
-    printf("GL_VERSION = %s\n", glGetString(GL_VERSION)) ;
+    {
+        const GLubyte *renderer = glGetString( GL_RENDERER );
+        const GLubyte *vendor = glGetString( GL_VENDOR );
+        const GLubyte *version = glGetString( GL_VERSION );
+        const GLubyte *glslVersion =
+        glGetString( GL_SHADING_LANGUAGE_VERSION );
+        GLint major, minor;
+        glGetIntegerv(GL_MAJOR_VERSION, &major);
+        glGetIntegerv(GL_MINOR_VERSION, &minor);
+        printf("GL Vendor    : %s\n", vendor);
+        printf("GL Renderer  : %s\n", renderer);
+        printf("GL Version (string)  : %s\n", version);
+        printf("GL Version (integer) : %d.%d\n", major, minor);
+        printf("GLSL Version : %s\n", glslVersion);
+    }
     
     this->lambda_initialize();
     glutDisplayFunc([](){
