@@ -10,3 +10,7 @@
 [submodule "lib3rd/boost.git"]
 	path = lib3rd/boost.git
 	url = https://github.com/boostorg/boost.git
+[submodule "lib3rd/MacOpenGL4.git"]
+	path = lib3rd/MacOpenGL4.git
+	url = git@42.96.140.163:~/pandaxclsdk.git
+	branch = MacOpenGL4
