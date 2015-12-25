@@ -24,12 +24,12 @@ class window
 public:
 	window();
 	~window();
-	friend window&operator<<(window&w, opengl&o);
+	friend window&operator<<(window&&w, opengl&o);
 };
 
 class opengl
 {
-	friend window&operator<<(window&w, opengl&o);
+	friend window&operator<<(window&&w, opengl&o);
 public:
     opengl();
     ~opengl();
@@ -126,28 +126,28 @@ class vertex_array_object
 {
 	struct detect
 	{
-#define VERTEX_ARRAY_OBJECT_DETECT(position)                                                                                           \
-		struct position                                                                                                                \
-		{                                                                                                                              \
-			template<typename D>static typename std::enable_if < !std::is_void<decltype(D::position##_location)>::value> ::type test();\
-			template<typename D>static int test(...);                                                                                  \
-			template<typename D>static constexpr bool exist() { return std::is_void<decltype(test<D>())>::value; }                     \
-                                                                                                                                       \
-			template<typename D>static typename std::enable_if <position::exist<D>()>::type                                            \
-				send_to_opengl_as_buffer_object(GLuint vboHandles[])                                                                   \
-			{                                                                                                                          \
-				D::position##_as_buffer_object(vboHandles[D::position##_location]);                                                    \
-			}                                                                                                                          \
-			template<typename D>static void send_to_opengl_as_buffer_object(...) { }                                                   \
-                                                                                                                                       \
-			template<typename D>static typename std::enable_if <position::exist<D>()>::type                                            \
-				send_to_opengl_as_member_of_vertex_array_object(GLuint vaoHandle, GLuint vboHandles[])                                 \
-			{                                                                                                                          \
-				glEnableVertexAttribArray(D::position##_location);                                                                     \
-				D::position##_as_member_of_vertex_array_object(vaoHandle, vboHandles[D::position##_location]);                         \
-			}                                                                                                                          \
-			template<typename D>static void send_to_opengl_as_member_of_vertex_array_object(...) { }                                   \
-		}                                                                                                                              \
+#define VERTEX_ARRAY_OBJECT_DETECT(position)                                                                                              \
+		struct position                                                                                                                   \
+		{                                                                                                                                 \
+			template<typename D>static typename std::enable_if < !std::is_void<decltype(D::position##_location)>::value> ::type test(int);\
+			template<typename D>static int test(...);                                                                                     \
+			template<typename D>static constexpr bool exist() { return std::is_void<decltype(test<D>(0))>::value; }                       \
+                                                                                                                                          \
+			template<typename D>static typename std::enable_if <position::exist<D>()>::type                                               \
+				send_to_opengl_as_buffer_object(GLuint vboHandles[])                                                                      \
+			{                                                                                                                             \
+				D::position##_as_buffer_object(vboHandles[D::position##_location]);                                                       \
+			}                                                                                                                             \
+			template<typename D>static void send_to_opengl_as_buffer_object(...) { }                                                      \
+                                                                                                                                          \
+			template<typename D>static typename std::enable_if <position::exist<D>()>::type                                               \
+				send_to_opengl_as_member_of_vertex_array_object(GLuint vaoHandle, GLuint vboHandles[])                                    \
+			{                                                                                                                             \
+				glEnableVertexAttribArray(D::position##_location);                                                                        \
+				D::position##_as_member_of_vertex_array_object(vaoHandle, vboHandles[D::position##_location]);                            \
+			}                                                                                                                             \
+			template<typename D>static void send_to_opengl_as_member_of_vertex_array_object(...) { }                                      \
+		}                                                                                                                                 \
 		/* 由于上一行是宏定义的续行符，所以这一行上不能有任何代码，但是注释却是可以的 */
 		VERTEX_ARRAY_OBJECT_DETECT(position);
 		VERTEX_ARRAY_OBJECT_DETECT(color);
@@ -156,28 +156,28 @@ class vertex_array_object
 #undef VERTEX_ARRAY_OBJECT_DETECT
 
 		static constexpr GLuint N_vbo_handles() {
-			return position::exist<Description>()
-				+ color::exist<Description>()
-				+ normal::exist<Description>()
-				+ index::exist<Description>();
+			return position::template exist<Description>()
+				+ color::template exist<Description>()
+				+ normal::template exist<Description>()
+				+ index::template exist<Description>();
 		}
 		static void send_to_opengl_as_buffer_objects(GLuint vboHandles[])
 		{
 			// Create the buffer objects
 			glGenBuffers(detect::N_vbo_handles(), vboHandles);
-			position::send_to_opengl_as_buffer_object<Description>(vboHandles);
-			color::send_to_opengl_as_buffer_object<Description>(vboHandles);
-			normal::send_to_opengl_as_buffer_object<Description>(vboHandles);
-			index::send_to_opengl_as_buffer_object<Description>(vboHandles);
+			position::template send_to_opengl_as_buffer_object<Description>(vboHandles);
+			color::template send_to_opengl_as_buffer_object<Description>(vboHandles);
+			normal::template send_to_opengl_as_buffer_object<Description>(vboHandles);
+			index::template send_to_opengl_as_buffer_object<Description>(vboHandles);
 		}
 		static void send_to_opengl_as_vertex_array_object(GLuint vaoHandle, GLuint vboHandles[])
 		{
 			// Create the buffer objects
 			glBindVertexArray(vaoHandle);
-			position::send_to_opengl_as_member_of_vertex_array_object<Description>(vaoHandle, vboHandles);
-			color::send_to_opengl_as_member_of_vertex_array_object<Description>(vaoHandle, vboHandles);
-			normal::send_to_opengl_as_member_of_vertex_array_object<Description>(vaoHandle, vboHandles);
-			index::send_to_opengl_as_buffer_object<Description>(vaoHandle, vboHandles);
+			position::template send_to_opengl_as_member_of_vertex_array_object<Description>(vaoHandle, vboHandles);
+			color::template send_to_opengl_as_member_of_vertex_array_object<Description>(vaoHandle, vboHandles);
+			normal::template send_to_opengl_as_member_of_vertex_array_object<Description>(vaoHandle, vboHandles);
+			index::template send_to_opengl_as_buffer_object<Description>(vaoHandle, vboHandles);
 		}
 	};
 	GLuint vboHandles[detect::N_vbo_handles()] = {0};

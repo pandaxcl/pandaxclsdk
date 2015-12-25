@@ -202,7 +202,7 @@ program&program::link()
 }
 
 
-window&operator<<(window&w, opengl&o)
+window&operator<<(window&&w, opengl&o)
 {
 	o.lambda_initialize();
 	glutSetWindowData(&o);
