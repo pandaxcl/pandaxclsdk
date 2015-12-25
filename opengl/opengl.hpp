@@ -17,13 +17,13 @@
 #include <vector>
 class opengl;
 class program;
+template<typename T> class buffer;
 class window
 {
 public:
 	window();
 	~window();
 	friend window&operator<<(window&w, opengl&o);
-	friend window&operator<<(window&w, program&o);
 };
 
 class opengl
@@ -35,7 +35,7 @@ public:
     opengl&display(std::function<void()>&&);
     opengl&initialize(std::function<void()>&&);
 private:
-    std::function<void()> lambda_display    = [](){};
+    std::function<void()> lambda_display    = nullptr;
     std::function<void()> lambda_initialize = [](){};
 };
 
@@ -68,7 +68,7 @@ typedef shader shader_t;
 
 class program
 {
-	friend window&operator<<(window&w, program&o);
+	friend opengl&operator<<(opengl&gl, program&o);
 public:
     program&shader(GLint kind, const std::string&source);
     program&shader(shader_t&&o);

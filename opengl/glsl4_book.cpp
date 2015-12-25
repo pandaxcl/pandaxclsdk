@@ -41,7 +41,8 @@ void main()
 
 		opengl render;
 		render
-			.initialize([local]() {
+			.initialize([local,&render,&gpu]() {
+			render << gpu;
 			GLfloat positionData[] = {
 				-0.8f, -0.8f, 0.0f,
 				0.8f, -0.8f, 0.0f,
@@ -50,7 +51,6 @@ void main()
 				1.0f, 0.0f, 0.0f,
 				0.0f, 1.0f, 0.0f,
 				0.0f, 0.0f, 1.0f };
-
 			// Create the buffer objects
 			GLuint vboHandles[2];
 			glGenBuffers(2, vboHandles);
@@ -85,13 +85,6 @@ void main()
 			glDrawArrays(GL_TRIANGLES, 0, 3);
 		});
 
-		SECTION("Ë³Ðò1")
-		{
-			window() << render << gpu;
-		}
-		SECTION("Ë³Ðò2")
-		{
-			window() << gpu << render;
-		}
+		window() << render;
 	}
 }

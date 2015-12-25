@@ -214,9 +214,9 @@ window&operator<<(window&w, opengl&o)
 	return w;
 }
 
-window&operator<<(window&w, program&o)
+opengl&operator<<(opengl&gl, program&o)
 {
 	o.link();
 	o.lambda_on_stream_out();
-	return w;
+	return gl;
 }
