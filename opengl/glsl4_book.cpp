@@ -1,5 +1,6 @@
 #include <catch.hpp>
 #include "opengl.hpp"
+#include <array>
 
 TEST_CASE("GLSL4BOOK")
 {
@@ -43,40 +44,45 @@ void main()
 		render
 			.initialize([local,&render,&gpu]() {
 			render << gpu;
-			GLfloat positionData[] = {
-				-0.8f, -0.8f, 0.0f,
-				0.8f, -0.8f, 0.0f,
-				0.0f,  0.8f, 0.0f };
-			GLfloat colorData[] = {
-				1.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f,
-				0.0f, 0.0f, 1.0f };
-			// Create the buffer objects
-			GLuint vboHandles[2];
-			glGenBuffers(2, vboHandles);
-			GLuint positionBufferHandle = vboHandles[0];
-			GLuint colorBufferHandle = vboHandles[1];
-			// Populate the position buffer 
-			glBindBuffer(GL_ARRAY_BUFFER, positionBufferHandle);
-			glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(GLfloat), positionData, GL_STATIC_DRAW);
-			// Populate the color buffer 
-			glBindBuffer(GL_ARRAY_BUFFER, colorBufferHandle);
-			glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(GLfloat), colorData, GL_STATIC_DRAW);
+			{
+				struct Description
+				{
+					enum { 
+						position_location = 0,
+						color_location = 1,
+					};
+					static void position_as_buffer_object(GLuint bufferHandle)
+					{
+						GLfloat data[] = {
+							-0.8f, -0.8f, 0.0f,
+							0.8f, -0.8f, 0.0f,
+							0.0f,  0.8f, 0.0f };
+						glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
+						glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(GLfloat), data, GL_STATIC_DRAW);
+					}
+					static void position_as_member_of_vertex_array_object(GLuint vaoHandle, GLuint bufferHandle)
+					{
+						glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
+						glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+					}
 
-			// Create and set-up the vertex array object 
-			glGenVertexArrays(1, &local->vaoHandle);
-			glBindVertexArray(local->vaoHandle);
-			// Enable the vertex attribute arrays 
-			glEnableVertexAttribArray(0);
-			// Vertex position 
-			glEnableVertexAttribArray(1);
-			// Vertex color
-			// Map index 0 to the position buffer 
-			glBindBuffer(GL_ARRAY_BUFFER, positionBufferHandle);
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
-			// Map index 1 to the color buffer 
-			glBindBuffer(GL_ARRAY_BUFFER, colorBufferHandle);
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+					static void color_as_buffer_object(GLuint bufferHandle)
+					{
+						GLfloat data[] = {
+							1.0f, 0.0f, 0.0f,
+							0.0f, 1.0f, 0.0f,
+							0.0f, 0.0f, 1.0f };
+						glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
+						glBufferData(GL_ARRAY_BUFFER, 9 * sizeof(GLfloat), data, GL_STATIC_DRAW);
+					}
+					static void color_as_member_of_vertex_array_object(GLuint vaoHandle, GLuint bufferHandle)
+					{
+						glBindBuffer(GL_ARRAY_BUFFER, bufferHandle);
+						glVertexAttribPointer(color_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+					}
+				};
+				local->vaoHandle = vertex_array_object<Description>().send_to_opengl().gl_handle();
+			}
 		})
 			.display([local]() {
 			glClear(GL_COLOR_BUFFER_BIT);
