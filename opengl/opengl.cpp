@@ -63,11 +63,6 @@ opengl::~opengl()
 
 }
 
-void opengl::swap_buffers()
-{
-    glutSwapBuffers();
-}
-
 opengl&opengl::display(std::function<void()>&&f)
 {
     this->lambda_display = std::move(f);
@@ -206,12 +201,6 @@ program&program::link()
     return *this;
 }
 
-void program::use()
-{
-    glUseProgram(_theProgram);
-}
-
-
 
 window&operator<<(window&w, opengl&o)
 {
@@ -220,6 +209,7 @@ window&operator<<(window&w, opengl&o)
 	glutDisplayFunc([]() {
 		opengl*self = reinterpret_cast<opengl*>(glutGetWindowData());
 		self->lambda_display();
+		glutSwapBuffers();
 	});
 	return w;
 }
@@ -227,5 +217,6 @@ window&operator<<(window&w, opengl&o)
 window&operator<<(window&w, program&o)
 {
 	o.link();
+	o.lambda_on_stream_out();
 	return w;
 }

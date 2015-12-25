@@ -8,10 +8,11 @@ TEST_CASE("GLSL4BOOK")
 		struct Local
 		{
 			GLuint vaoHandle = 0;
-			program P;
+			GLuint programHandle = 0;
 		};
 		auto local = std::make_shared<Local>();
-		local->P
+		program gpu; 
+		gpu
 			.shader(GL_VERTEX_SHADER, u8R"(
 #version 400
 in vec3 VertexPosition;
@@ -32,11 +33,14 @@ void main()
     FragColor = vec4(Color, 1.0);
     //FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
-                       )");
+                       )")
+			.on_stream_out([local,&gpu]() {
+			local->programHandle = gpu.gl_program();
+		});
 
 
-		opengl gl;
-		gl
+		opengl render;
+		render
 			.initialize([local]() {
 			GLfloat positionData[] = {
 				-0.8f, -0.8f, 0.0f,
@@ -76,15 +80,18 @@ void main()
 		})
 			.display([local]() {
 			glClear(GL_COLOR_BUFFER_BIT);
-			local->P.use();
-			//glutWireTeapot(0.5);
+			glUseProgram(local->programHandle);
 			glBindVertexArray(local->vaoHandle);
 			glDrawArrays(GL_TRIANGLES, 0, 3);
-			glutSwapBuffers();
 		});
+
+		SECTION("Ë³Ðò1")
 		{
-			window() << gl << local->P;
+			window() << render << gpu;
 		}
-		
+		SECTION("Ë³Ðò2")
+		{
+			window() << gpu << render;
+		}
 	}
 }

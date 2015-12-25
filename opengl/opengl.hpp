@@ -34,8 +34,6 @@ public:
     ~opengl();
     opengl&display(std::function<void()>&&);
     opengl&initialize(std::function<void()>&&);
-public:
-    void swap_buffers();
 private:
     std::function<void()> lambda_display    = [](){};
     std::function<void()> lambda_initialize = [](){};
@@ -76,11 +74,12 @@ public:
     program&shader(shader_t&&o);
     program&link();
     GLuint gl_program() { return _theProgram; }
-    void   use();
+	void   on_stream_out(std::function<void()>&&f) { this->lambda_on_stream_out = std::move(f); }
 private:
     std::vector<shader_t> _shaders;
     GLuint                _theProgram;
     std::string           _log;
+	std::function<void()> lambda_on_stream_out = nullptr;
 };
 
 #endif /* opengl_hpp */
