@@ -14,48 +14,53 @@
 #pragma comment(lib, "freeglut.lib")
 #pragma comment(lib, "glew32s.lib")
 
-opengl::opengl(int argc, const char * argv[])
+window::window()
 {
-    glutInit(&argc, (char**)argv);
+	int argc = 0;
+	char*argv[] = { "opengl" };
+	glutInit(&argc, argv);
+
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+
+	//glutInitContextVersion(4, 1);
+	glutInitWindowSize(512, 512);
+	glutCreateWindow("Hello World");
+
+	GLenum err = glewInit();
+	if (GLEW_OK != err)
+	{
+		std::cerr << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
+	}
+
+	printf("GL_VERSION = %s\n", glGetString(GL_VERSION));
+}
+
+window::~window()
+{
+	std::atomic<bool> OK(true);
+
+	auto f = std::async([&OK]() {
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+		OK = false;
+	});
+
+	while (OK) {
+		glutMainLoopEvent();
+	}
+
+	f.get();
+
+	glutExit();
+}
+
+opengl::opengl()
+{
+	
 }
 
 opengl::~opengl()
 {
-    glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGBA);
-    
-	//glutInitContextVersion(4, 1);
-    glutInitWindowSize(512, 512);
-    this->_window = glutCreateWindow("Hello World");
-    glutSetWindowData(this);
-    
-    GLenum err = glewInit();
-    if( GLEW_OK != err )
-    {
-        std::cerr<<"Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
-    }
-    
-    printf("GL_VERSION = %s\n", glGetString(GL_VERSION)) ;
-    
-    this->lambda_initialize();
-    glutDisplayFunc([](){
-        opengl*self = reinterpret_cast<opengl*>(glutGetWindowData());
-        self->lambda_display();
-    });
-    
-    std::atomic<bool> OK(true);
-    
-    auto f = std::async([&OK](){
-        std::this_thread::sleep_for(std::chrono::seconds(10));
-        OK = false;
-    });
-    
-    while (OK) {
-        glutMainLoopEvent();
-    }
-    
-    f.get();
-    
-    glutExit();
+
 }
 
 void opengl::swap_buffers()
@@ -204,4 +209,23 @@ program&program::link()
 void program::use()
 {
     glUseProgram(_theProgram);
+}
+
+
+
+window&operator<<(window&w, opengl&o)
+{
+	o.lambda_initialize();
+	glutSetWindowData(&o);
+	glutDisplayFunc([]() {
+		opengl*self = reinterpret_cast<opengl*>(glutGetWindowData());
+		self->lambda_display();
+	});
+	return w;
+}
+
+window&operator<<(window&w, program&o)
+{
+	o.link();
+	return w;
 }
