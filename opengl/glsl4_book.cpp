@@ -298,32 +298,34 @@ void main()
 			GLuint blockIndex = glGetUniformBlockIndex(programHandle, "BlobSettings");
 			GLint blockSize;
 			glGetActiveUniformBlockiv(programHandle, blockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, &blockSize);
-			GLubyte * blockBuffer = (GLubyte *)malloc(blockSize);
 			// Query for the offsets of each block variable 
-			const GLchar *names[] = { 
-				"InnerColor", 
+			const GLchar *names[] = {
+				"InnerColor",
 				"OuterColor",
-				"RadiusInner", 
-				"RadiusOuter" 
-			}; 
+				"RadiusInner",
+				"RadiusOuter"
+			};
 			GLuint indices[4];
-			glGetUniformIndices(programHandle, 4, names, indices); 
-			GLint offset[4]; 
-			glGetActiveUniformsiv(programHandle, 4, indices,GL_UNIFORM_OFFSET, offset); 
+			glGetUniformIndices(programHandle, 4, names, indices);
+			GLint offset[4];
+			glGetActiveUniformsiv(programHandle, 4, indices, GL_UNIFORM_OFFSET, offset);
 
+			GLubyte * blockBuffer = (GLubyte *)malloc(blockSize);
 			GLfloat outerColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 			GLfloat innerColor[] = { 1.0f, 1.0f, 0.75f, 1.0f };
 			GLfloat innerRadius = 0.25f;
 			GLfloat outerRadius = 0.45f;
-			memcpy(blockBuffer + offset[0], innerColor, 4 * sizeof(GLfloat)); 
+			memcpy(blockBuffer + offset[0], innerColor, 4 * sizeof(GLfloat));
 			memcpy(blockBuffer + offset[1], outerColor, 4 * sizeof(GLfloat));
 			memcpy(blockBuffer + offset[2], &innerRadius, sizeof(GLfloat));
 			memcpy(blockBuffer + offset[3], &outerRadius, sizeof(GLfloat));
 
 			GLuint uboHandle;
 			glGenBuffers(1, &uboHandle);
-			glBindBuffer(GL_UNIFORM_BUFFER, uboHandle); 
+			glBindBuffer(GL_UNIFORM_BUFFER, uboHandle);
 			glBufferData(GL_UNIFORM_BUFFER, blockSize, blockBuffer, GL_DYNAMIC_DRAW);
+
+			free(blockBuffer);
 
 			glBindBufferBase(GL_UNIFORM_BUFFER, blockIndex, uboHandle);
 		}
