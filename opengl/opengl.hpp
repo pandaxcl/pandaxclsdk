@@ -283,7 +283,7 @@ class vertex_array_object
 		}
 
 		template<typename D> static void _bind_element_array_buffer(...) {}
-		template<typename D> static typename std::enable_if<element::exist<D>()>::type 
+		template<typename D> static typename std::enable_if<element::template exist<D>()>::type
 			_bind_element_array_buffer(GLuint vboHandles[])
 		{
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboHandles[D::element_location]);

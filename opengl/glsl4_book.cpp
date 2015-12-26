@@ -112,7 +112,7 @@ namespace Description
 	};
 }// namespace Description
 
-TEST_CASE("µÚÒ»¸öÀı×Ó", "[GLSL4BOOK]")
+TEST_CASE("ç¬¬ä¸€ä¸ªä¾‹å­", "[GLSL4BOOK]")
 {
 	struct Local
 	{
@@ -127,7 +127,7 @@ TEST_CASE("µÚÒ»¸öÀı×Ó", "[GLSL4BOOK]")
 			{
 				struct Description
 				{
-					static GLchar*vertex_shader()
+					static const GLchar*vertex_shader()
 					{
 						return u8R"(
 #version 400
@@ -141,7 +141,7 @@ void main()
 }
                        )";
 					}
-					static GLchar*fragment_shader()
+					static const GLchar*fragment_shader()
 					{
 						return u8R"(
 #version 400
@@ -169,7 +169,7 @@ void main()
 	window() << render;
 }
 
-TEST_CASE("Í¨¹ıuniform±äÁ¿´«µİÊı¾İµ½¶¥µã×ÅÉ«Æ÷", "[GLSL4BOOK]")
+TEST_CASE("é€šè¿‡uniformå˜é‡ä¼ é€’æ•°æ®åˆ°é¡¶ç‚¹ç€è‰²å™¨", "[GLSL4BOOK]")
 {
 	struct Local
 	{
@@ -184,7 +184,7 @@ TEST_CASE("Í¨¹ıuniform±äÁ¿´«µİÊı¾İµ½¶¥µã×ÅÉ«Æ÷", "[GLSL4BOOK]")
 			{
 				struct Description
 				{
-					static GLchar*vertex_shader()
+					static const GLchar*vertex_shader()
 					{
 						return u8R"(
 #version 400
@@ -199,7 +199,7 @@ void main()
 }
                        )";
 					}
-					static GLchar*fragment_shader()
+					static const GLchar*fragment_shader()
 					{
 						return u8R"(
 #version 400
@@ -233,7 +233,7 @@ void main()
 	window() << render;
 }
 
-TEST_CASE("Í¨¹ıuniform¿é±äÁ¿´«µİÊı¾İµ½Æ¬Ôª×ÅÉ«Æ÷", "[GLSL4BOOK][active]")
+TEST_CASE("é€šè¿‡uniformå—å˜é‡ä¼ é€’æ•°æ®åˆ°ç‰‡å…ƒç€è‰²å™¨", "[GLSL4BOOK][active]")
 {
 	struct Local
 	{
@@ -248,7 +248,7 @@ TEST_CASE("Í¨¹ıuniform¿é±äÁ¿´«µİÊı¾İµ½Æ¬Ôª×ÅÉ«Æ÷", "[GLSL4BOOK][active]")
 			{
 				struct Description
 				{
-					static GLchar*vertex_shader()
+					static const GLchar*vertex_shader()
 					{
 						return u8R"(
 #version 400 
@@ -262,7 +262,7 @@ void main()
 } 
                        )";
 					}
-					static GLchar*fragment_shader()
+					static const GLchar*fragment_shader()
 					{
 						return u8R"(
 #version 400 

@@ -21,6 +21,11 @@ window::window()
 	if (!glfwInit())
 		return;
 
+    glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 4 );
+    glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 1 );
+    glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
+    glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+    
 	/* Create a windowed mode window and its OpenGL context */
 	theWindow = glfwCreateWindow(640, 480, "Hello World GLFW", NULL, NULL);
 	if (!theWindow)
@@ -32,6 +37,7 @@ window::window()
 	/* Make the window's context current */
 	glfwMakeContextCurrent(theWindow);
 
+    glewExperimental = true;
 	GLenum err = glewInit();
 	if (GLEW_OK != err)
 	{
@@ -53,10 +59,11 @@ window::~window()
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(theWindow))
 	{
+        if (!OK)
+            glfwSetWindowShouldClose(theWindow, true);
+        
+        std::cout<<"-=--=-=--"<<std::endl;
 		/* Render here */
-		if (!OK)
-			break;
-
 		this->lambda_display();
 
 		/* Swap front and back buffers */
