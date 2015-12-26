@@ -15,10 +15,9 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <iostream>
 
 class opengl;
-class program;
-template<typename T> class buffer;
 class window
 {
 public:
@@ -40,47 +39,97 @@ private:
     std::function<void()> lambda_initialize = [](){};
 };
 
-class shader
+template<typename Description>class gpu_program
 {
-    shader() = delete;
-    
-public:
-    shader(GLint kind, const std::string&source);
-    
-    shader(const shader&o) { __copy__(o); }
-    shader&operator=(const shader&o) { __copy__(o); return *this; }
-    shader(shader&&o) { __move__(std::move(o)); }
-    shader&operator=(shader&&o) { __move__(std::move(o)); return *this; }
-    shader&     compile();
-    
-    std::string kind_name();
-    GLuint      gl_shader() { return _theShader; }
-private:
-    std::string _source;
-    GLint       _kind;
-    GLuint      _theShader;
-    std::string _log;
-    
-    void __move__(shader&&o);
-    void __copy__(const shader&o);
-};
+	struct detect
+	{
+#define GPU_PROGRAM_DETECT(vertex_shader, shaderType)                                                                               \
+        struct vertex_shader                                                                                                        \
+        {                                                                                                                           \
+            template<typename D>static typename std::enable_if < !std::is_void<decltype(D::vertex_shader)>::value> ::type test(int);\
+            template<typename D>static int test(...);                                                                               \
+            template<typename D>static constexpr bool exist() { return std::is_void<decltype(test<D>(0))>::value; }                 \
+                                                                                                                                    \
+            template<typename D>static void send_to_opengl_as_shader(...) { }                                                       \
+            template<typename D>static typename std::enable_if <vertex_shader::exist<D>()>::type                                    \
+                send_to_opengl_as_shader(GLuint programHandle)                                                                      \
+            {                                                                                                                       \
+                GLuint shaderHandle = glCreateShader(shaderType);                                                                   \
+                if (0 == shaderHandle)                                                                                              \
+                {                                                                                                                   \
+                    std::cerr << "Error creating " << #shaderType << " shader." << std::endl;                                       \
+                    exit(1);                                                                                                        \
+                }                                                                                                                   \
+                                                                                                                                    \
+                const GLchar* codeArray[] = { D::vertex_shader() };                                                                 \
+                glShaderSource(shaderHandle, 1, codeArray, NULL);                                                                   \
+                glCompileShader(shaderHandle);                                                                                      \
+                                                                                                                                    \
+                GLint result = GL_FALSE;                                                                                            \
+                glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &result);                                                            \
+                if (GL_FALSE == result)                                                                                             \
+                {                                                                                                                   \
+                    std::cerr << shaderType << " compilation failed!" << std::endl;                                                 \
+                    std::string log;                                                                                                \
+                    GLint logLen = 0;                                                                                               \
+                    glGetShaderiv(shaderHandle, GL_INFO_LOG_LENGTH, &logLen);                                                       \
+                    if (logLen > 0)                                                                                                 \
+                    {                                                                                                               \
+                        log.resize(logLen);                                                                                         \
+                        GLsizei written;                                                                                            \
+                        glGetShaderInfoLog(shaderHandle, logLen, &written, &log[0]);                                                \
+                        std::cerr << "Shader log:" << std::endl << log << std::endl;                                                \
+                    }                                                                                                               \
+                }                                                                                                                   \
+                glAttachShader(programHandle, shaderHandle);                                                                        \
+            }                                                                                                                       \
+        };                                                                                                                          \
+		/* 上一行是宏的续行符，所以这一行不能有代码，但是注释却是可以的 */
+		GPU_PROGRAM_DETECT(vertex_shader, GL_VERTEX_SHADER);
+		GPU_PROGRAM_DETECT(fragment_shader, GL_FRAGMENT_SHADER);
 
-typedef shader shader_t;
+#undef GPU_PROGRAM_DETECT
 
-class program
-{
-	friend opengl&operator<<(opengl&gl, program&o);
+		static void send_to_opengl_as_shaders(GLuint programHandle)
+		{
+			vertex_shader::template send_to_opengl_as_shader<Description>(programHandle);
+			fragment_shader::template send_to_opengl_as_shader<Description>(programHandle);
+		}
+	};
+	GLuint programHandle = 0;
 public:
-    program&shader(GLint kind, const std::string&source);
-    program&shader(shader_t&&o);
-    program&link();
-    GLuint gl_program() { return _theProgram; }
-	void   on_stream_out(std::function<void()>&&f) { this->lambda_on_stream_out = std::move(f); }
-private:
-    std::vector<shader_t> _shaders;
-    GLuint                _theProgram;
-    std::string           _log;
-	std::function<void()> lambda_on_stream_out = nullptr;
+	GLuint gl_handle() { return programHandle; }
+	gpu_program& send_to_opengl()
+	{
+		this->programHandle = glCreateProgram();
+		if (0 == programHandle)
+		{
+			std::cerr << "Error creating program object." << std::endl;
+			exit(1);
+		}
+
+		detect::send_to_opengl_as_shaders(programHandle);
+
+		glLinkProgram(programHandle);
+
+		GLint status = GL_FALSE;
+		glGetProgramiv(programHandle, GL_LINK_STATUS, &status);
+		if (GL_FALSE == status)
+		{
+			std::string log;
+			std::cerr << "Failed to link shader program!" << std::endl;
+			GLint logLen;
+			glGetProgramiv(programHandle, GL_INFO_LOG_LENGTH, &logLen);
+			if (logLen > 0)
+			{
+				log.resize(logLen);
+				GLsizei written = 0;
+				glGetProgramInfoLog(programHandle, logLen, &written, &log[0]);
+				std::cerr << "Program log:" << std::endl << log << std::endl;
+			}
+		}
+		return *this;
+	}
 };
 
 /*************************************************************************************************************

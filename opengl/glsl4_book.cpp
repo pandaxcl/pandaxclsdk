@@ -12,9 +12,16 @@ TEST_CASE("GLSL4BOOK")
 			GLuint programHandle = 0;
 		};
 		auto local = std::make_shared<Local>();
-		program gpu; 
-		gpu
-			.shader(GL_VERTEX_SHADER, u8R"(
+
+		opengl render;
+		render
+			.initialize([local,&render]() {
+			{
+				struct Description
+				{
+					static GLchar*vertex_shader()
+					{
+						return u8R"(
 #version 400
 in vec3 VertexPosition;
 in vec3 VertexColor;
@@ -24,26 +31,23 @@ void main()
     Color = VertexColor;
     gl_Position = vec4( VertexPosition, 1.0 );
 }
-                       )")
-			.shader(GL_FRAGMENT_SHADER, u8R"(
+                       )";
+					}
+					static GLchar*fragment_shader()
+					{
+						return u8R"(
 #version 400
 in vec3 Color;
 out vec4 FragColor;
 void main()
 {
     FragColor = vec4(Color, 1.0);
-    //FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
-                       )")
-			.on_stream_out([local,&gpu]() {
-			local->programHandle = gpu.gl_program();
-		});
-
-
-		opengl render;
-		render
-			.initialize([local,&render,&gpu]() {
-			render << gpu;
+                       )";
+					}
+				};
+				local->programHandle = gpu_program<Description>().send_to_opengl().gl_handle();
+			}
 			{
 				struct Description
 				{
