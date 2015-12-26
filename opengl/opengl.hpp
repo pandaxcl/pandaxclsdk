@@ -11,7 +11,7 @@
 
 #define GLEW_STATIC
 #include <GL/glew.h>
-#include <GL/freeglut.h>
+#include <GLFW/glfw3.h>
 #include <functional>
 #include <string>
 #include <vector>
@@ -20,10 +20,13 @@
 class opengl;
 class window
 {
+	friend window&operator<<(window&&w, opengl&o);
 public:
 	window();
 	~window();
-	friend window&operator<<(window&&w, opengl&o);
+private:
+	std::function<void()> lambda_display;
+	GLFWwindow* theWindow = nullptr;
 };
 
 class opengl

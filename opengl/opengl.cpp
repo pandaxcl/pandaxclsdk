@@ -11,20 +11,26 @@
 
 #include "opengl.hpp"
 
-#pragma comment(lib, "freeglut.lib")
 #pragma comment(lib, "glew32s.lib")
+#pragma comment(lib, "glfw3.lib")
+#pragma comment(lib, "opengl32.lib")
 
 window::window()
 {
-	int argc = 0;
-	char*argv[] = { "opengl" };
-	glutInit(&argc, argv);
+	/* Initialize the library */
+	if (!glfwInit())
+		return;
 
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
+	/* Create a windowed mode window and its OpenGL context */
+	theWindow = glfwCreateWindow(640, 480, "Hello World GLFW", NULL, NULL);
+	if (!theWindow)
+	{
+		glfwTerminate();
+		return;
+	}
 
-	//glutInitContextVersion(4, 1);
-	glutInitWindowSize(512, 512);
-	glutCreateWindow("Hello World");
+	/* Make the window's context current */
+	glfwMakeContextCurrent(theWindow);
 
 	GLenum err = glewInit();
 	if (GLEW_OK != err)
@@ -44,13 +50,25 @@ window::~window()
 		OK = false;
 	});
 
-	while (OK) {
-		glutMainLoopEvent();
+	/* Loop until the user closes the window */
+	while (!glfwWindowShouldClose(theWindow))
+	{
+		/* Render here */
+		if (!OK)
+			break;
+
+		this->lambda_display();
+
+		/* Swap front and back buffers */
+		glfwSwapBuffers(theWindow);
+
+		/* Poll for and process events */
+		glfwPollEvents();
 	}
 
 	f.get();
 
-	glutExit();
+	glfwTerminate();
 }
 
 opengl::opengl()
@@ -80,11 +98,8 @@ opengl&opengl::initialize(std::function<void()>&&f)
 window&operator<<(window&&w, opengl&o)
 {
 	o.lambda_initialize();
-	glutSetWindowData(&o);
-	glutDisplayFunc([]() {
-		opengl*self = reinterpret_cast<opengl*>(glutGetWindowData());
-		self->lambda_display();
-		glutSwapBuffers();
-	});
+	w.lambda_display = [&o]() {
+		o.lambda_display();
+	};
 	return w;
 }
