@@ -36,6 +36,14 @@ window::window()
 
 	/* Make the window's context current */
 	glfwMakeContextCurrent(theWindow);
+    
+    glfwSetWindowUserPointer(theWindow, this);
+    glfwSetWindowRefreshCallback(theWindow, [](GLFWwindow*theWindow){
+        window*w = static_cast<window*>(glfwGetWindowUserPointer(theWindow));
+        w->lambda_display();
+        /* Swap front and back buffers */
+        glfwSwapBuffers(theWindow);
+    });
 
     glewExperimental = true;
 	GLenum err = glewInit();
@@ -44,7 +52,11 @@ window::window()
 		std::cerr << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
 	}
 
-	printf("GL_VERSION = %s\n", glGetString(GL_VERSION));
+    std::cout << "GLFW version                : " << glfwGetVersionString() << std::endl;
+    std::cout << "GL_VERSION                  : " << glGetString( GL_VERSION ) << std::endl;
+    std::cout << "GL_VENDOR                   : " << glGetString( GL_VENDOR ) << std::endl;
+    std::cout << "GL_RENDERER                 : " << glGetString( GL_RENDERER ) << std::endl;
+    std::cout << "GL_SHADING_LANGUAGE_VERSION : " << glGetString( GL_SHADING_LANGUAGE_VERSION ) << std::endl;
 }
 
 window::~window()
@@ -61,13 +73,6 @@ window::~window()
 	{
         if (!OK)
             glfwSetWindowShouldClose(theWindow, true);
-        
-        std::cout<<"-=--=-=--"<<std::endl;
-		/* Render here */
-		this->lambda_display();
-
-		/* Swap front and back buffers */
-		glfwSwapBuffers(theWindow);
 
 		/* Poll for and process events */
 		glfwPollEvents();
@@ -106,6 +111,7 @@ window&operator<<(window&&w, opengl&o)
 {
 	o.lambda_initialize();
 	w.lambda_display = [&o]() {
+        std::cout<<"重画"<<std::endl;
 		o.lambda_display();
 	};
 	return w;
