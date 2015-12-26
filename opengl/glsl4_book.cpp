@@ -2,20 +2,18 @@
 #include "opengl.hpp"
 #include <array>
 
-TEST_CASE("GLSL4BOOK")
+TEST_CASE("第一个例子", "[GLSL4BOOK]")
 {
-	SECTION("第一个例子")
+	struct Local
 	{
-		struct Local
-		{
-			GLuint vaoHandle = 0;
-			GLuint programHandle = 0;
-		};
-		auto local = std::make_shared<Local>();
+		GLuint vaoHandle = 0;
+		GLuint programHandle = 0;
+	};
+	auto local = std::make_shared<Local>();
 
-		opengl render;
-		render
-			.initialize([local,&render]() {
+	opengl render;
+	render
+		.initialize([local, &render]() {
 			{
 				struct Description
 				{
@@ -46,12 +44,12 @@ void main()
                        )";
 					}
 				};
-				local->programHandle = gpu_program<Description>().send_to_opengl().gl_handle();
+				local->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
 			}
 			{
 				struct Description
 				{
-					enum { 
+					enum {
 						position_location = 0,
 						color_location = 1,
 					};
@@ -87,14 +85,18 @@ void main()
 				};
 				local->vaoHandle = vertex_array_object<Description>().send_to_opengl().gl_handle();
 			}
-		})
-			.display([local]() {
-			glClear(GL_COLOR_BUFFER_BIT);
-			glUseProgram(local->programHandle);
-			glBindVertexArray(local->vaoHandle);
-			glDrawArrays(GL_TRIANGLES, 0, 3);
-		});
+	})
+		.display([local]() {
+		glClear(GL_COLOR_BUFFER_BIT);
+		glUseProgram(local->programHandle);
+		glBindVertexArray(local->vaoHandle);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+	});
 
-		window() << render;
-	}
+	window() << render;
+}
+
+TEST_CASE("第二个例子", "[GLSL4BOOK][active]")
+{
+
 }

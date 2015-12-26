@@ -130,6 +130,52 @@ public:
 		}
 		return *this;
 	}
+
+	gpu_program&report()
+	{
+		report_vertex_locations();
+		report_uniform_variables();
+		return *this;
+	}
+private:
+	void report_vertex_locations()
+	{
+		GLint maxLength, nAttribs;
+		glGetProgramiv(programHandle, GL_ACTIVE_ATTRIBUTES, &nAttribs);
+		glGetProgramiv(programHandle, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &maxLength);
+
+		GLchar * name = (GLchar *)malloc(maxLength);
+
+		GLint written, size, location;
+		GLenum type; printf(" Index | Name\n");
+		printf("------------------------------------------------\n");
+		for (int i = 0; i < nAttribs; i++)
+		{
+			glGetActiveAttrib(programHandle, i, maxLength, &written, &size, &type, name);
+			location = glGetAttribLocation(programHandle, name);
+			printf(" %-5d | %s\n", location, name);
+		}
+		free(name);
+	}
+	void report_uniform_variables()
+	{
+		GLint nUniforms, maxLen; 
+		glGetProgramiv(programHandle, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxLen); 
+		glGetProgramiv(programHandle, GL_ACTIVE_UNIFORMS, &nUniforms);
+		GLchar * name = (GLchar *)malloc(maxLen);
+		GLint size, location;
+		GLsizei written; 
+		GLenum type; 
+		printf(" Location | Name\n"); 
+		printf("------------------------------------------------\n"); 
+		for (int i = 0; i < nUniforms; ++i) 
+		{
+			glGetActiveUniform(programHandle, i, maxLen, &written, &size, &type, name);   
+			location = glGetUniformLocation(programHandle, name);    
+			printf(" %-8d | %s\n", location, name); 
+		}
+		free(name);
+	}
 };
 
 /*************************************************************************************************************
