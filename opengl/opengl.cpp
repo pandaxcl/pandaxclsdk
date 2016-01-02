@@ -27,7 +27,7 @@ window::window()
     glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
     
 	/* Create a windowed mode window and its OpenGL context */
-	theWindow = glfwCreateWindow(640, 480, "Hello World GLFW", NULL, NULL);
+	GLFWwindow*theWindow = glfwCreateWindow(640, 480, "Hello World GLFW", NULL, NULL);
 	if (!theWindow)
 	{
 		glfwTerminate();
@@ -68,6 +68,7 @@ window::~window()
 		OK = false;
 	});
 
+    GLFWwindow*theWindow = glfwGetCurrentContext();
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(theWindow))
 	{

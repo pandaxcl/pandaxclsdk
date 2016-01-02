@@ -65,7 +65,7 @@ namespace block
     };
 }
 
-TEST_CASE("第一个例子", "[GLSL4BOOK]")
+TEST_CASE(u8"第一个例子", "[GLSL4BOOK]")
 {
 	struct Local
 	{
@@ -122,7 +122,7 @@ void main()
 	window() << render;
 }
 
-TEST_CASE("通过uniform变量传递数据到顶点着色器", "[GLSL4BOOK]")
+TEST_CASE(u8"通过uniform变量传递数据到顶点着色器", "[GLSL4BOOK]")
 {
 	struct Local
 	{
@@ -186,7 +186,7 @@ void main()
 	window() << render;
 }
 
-TEST_CASE("通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK][active]")
+TEST_CASE(u8"通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK][active]")
 {
     struct BlobSettings:block::uniform_description
     {

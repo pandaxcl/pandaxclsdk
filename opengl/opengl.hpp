@@ -26,7 +26,6 @@ public:
 	~window();
 private:
 	std::function<void()> lambda_display;
-	GLFWwindow* theWindow = nullptr;
 };
 
 class opengl
