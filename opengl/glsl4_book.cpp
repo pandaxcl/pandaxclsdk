@@ -295,7 +295,7 @@ TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit][active]")
     struct Local
     {
         GLuint programHandle = 0;
-        vertex_array_object<model::obj_model> vao;
+        vertex_array_object<model::Rabbit> vao;
     };
     auto local = std::make_shared<Local>();
     opengl render;

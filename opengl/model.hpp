@@ -122,9 +122,16 @@ namespace model
         
         void will_send_to_opengl();
         void did_send_to_opengl();
-    private:
+    protected:
         GLMmodel*model = nullptr;
         GLuint numOfTriangles = 0;
+    };
+    
+    struct Rabbit: public obj_model
+    {
+        typedef obj_model super;
+        void will_send_to_opengl();
+        void did_send_to_opengl();
     };
 }// namespace Description
 
