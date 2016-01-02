@@ -72,7 +72,7 @@ struct calculator
     }
 };
 
-TEST_CASE("boost::proto", "[BOOST][active]")
+TEST_CASE("boost::proto", "[BOOST]")
 {
     using namespace boost;
     
