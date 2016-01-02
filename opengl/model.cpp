@@ -11,10 +11,11 @@
 
 namespace model
 {
-    GLMmodel*obj_model::model = nullptr;
     void obj_model::will_send_to_opengl()
     {
-        model = glmReadOBJ("");
+        model = glmReadOBJ("/Users/pandaxcl/Downloads/f7a816806b2db955e28628ec1aacd0cc/028.obj");
+        glmUnitize(model);
+        this->numOfTriangles = model->numtriangles;
     }
     void obj_model::did_send_to_opengl()
     {
@@ -125,7 +126,6 @@ namespace model
     
     void obj_model::display()
     {
-        //glDrawElements(GL_TRIANGLES, 3 * model->numtriangles, GL_UNSIGNED_INT, nullptr);
-        glDrawArrays(GL_TRIANGLES, 0, 3 * model->numtriangles);
+        glDrawArrays(GL_TRIANGLES, 0, 3 * this->numOfTriangles);
     }
 }

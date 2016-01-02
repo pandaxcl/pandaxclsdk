@@ -298,6 +298,20 @@ class vertex_array_object
 			_bind_element_array_buffer<D>(self);
 			self->d.display();
 		}
+        
+        template<typename D> static void will_send_to_opengl(...){}
+        template<typename D> static std::enable_if_t<std::is_void<decltype(std::declval<D>().will_send_to_opengl())>::value>
+        will_send_to_opengl(self_t*self)
+        {
+            self->d.will_send_to_opengl();
+        }
+        
+        template<typename D> static void did_send_to_opengl(...){}
+        template<typename D> static std::enable_if_t<std::is_void<decltype(std::declval<D>().did_send_to_opengl())>::value>
+        did_send_to_opengl(self_t*self)
+        {
+            self->d.did_send_to_opengl();
+        }
 	};
 	GLuint vboHandles[detect::N_vbo_handles()] = {0};
 	GLuint vaoHandle = 0;
@@ -306,9 +320,11 @@ public:
 	GLuint gl_handle() { return vaoHandle; }
 	vertex_array_object& send_to_opengl()
 	{
+        detect::template will_send_to_opengl<Description>(this);
 		glGenVertexArrays(1, &vaoHandle);
 		detect::send_to_opengl_as_buffer_objects(this);
 		detect::send_to_opengl_as_vertex_array_object(this);
+        detect::template did_send_to_opengl<Description>(this);
 		return *this;
 	}
 	void display()

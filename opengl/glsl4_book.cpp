@@ -186,7 +186,7 @@ void main()
 	window() << render;
 }
 
-TEST_CASE(u8"通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK][active]")
+TEST_CASE(u8"通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK]")
 {
     struct BlobSettings:block::uniform_description
     {
@@ -290,45 +290,52 @@ TEST_CASE(u8"通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK]
 	window() << render;
 }
 
-TEST_CASE(u8"绘制兔子模型", "[GLUT][Teapot]")
+TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit][active]")
 {
     struct Local
     {
         GLuint programHandle = 0;
+        vertex_array_object<model::obj_model> vao;
     };
     auto local = std::make_shared<Local>();
     opengl render;
     render.initialize([local](){
-        struct Description
         {
-            static const GLchar*vertex_shader()
+            struct Description
             {
-                return u8R"(
-#version 400
-                layout (location = 0) in vec3 VertexPosition;
-                void main()
+                static const GLchar*vertex_shader()
                 {
-                    gl_Position = vec4(VertexPosition, 1);
-                }
-                )";
-            }
-            static const GLchar*fragment_shader()
-            {
-                return u8R"(
+                    return u8R"(
 #version 400
-                layout (location = 0) out vec4 FragColor;
-                void main()
-                {
-                    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                    layout (location = 0) in vec3 VertexPosition;
+                    void main()
+                    {
+                        gl_Position = vec4(VertexPosition, 1);
+                    }
+                    )";
                 }
-                )";
-            }
-        };
-        local->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+                static const GLchar*fragment_shader()
+                {
+                    return u8R"(
+#version 400
+                    layout (location = 0) out vec4 FragColor;
+                    void main()
+                    {
+                        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                    }
+                    )";
+                }
+            };
+            local->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+        }
+        {
+            local->vao.send_to_opengl();
+        }
     })
     .display([local](){
         glClear(GL_COLOR_BUFFER_BIT);
         glUseProgram(local->programHandle);
+        local->vao.display();
     });
     window() << render;
 }

@@ -106,24 +106,25 @@ namespace model
     {
         enum {
             position_location = 0,
-            texture_location  = 1,
-            normal_location   = 2,
+            normal_location   = 1,
+            texture_location  = 2,
         };
-        static void position_as_buffer_object();
-        static void position_as_member_of_vertex_array_object();
+        void position_as_buffer_object();
+        void position_as_member_of_vertex_array_object();
         
-        static void texture_as_buffer_object();
-        static void texture_as_member_of_vertex_array_object();
+        void texture_as_buffer_object();
+        void texture_as_member_of_vertex_array_object();
         
-        static void normal_as_buffer_object();
-        static void normal_as_member_of_vertex_array_object();
+        void normal_as_buffer_object();
+        void normal_as_member_of_vertex_array_object();
         
-        static void display();
+        void display();
         
-        static void will_send_to_opengl();
-        static void did_send_to_opengl();
+        void will_send_to_opengl();
+        void did_send_to_opengl();
     private:
-        static GLMmodel*model;
+        GLMmodel*model = nullptr;
+        GLuint numOfTriangles = 0;
     };
 }// namespace Description
 
