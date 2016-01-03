@@ -65,7 +65,7 @@ namespace block
     };
 }
 
-TEST_CASE(u8"第一个例子", "[GLSL4BOOK][active]")
+TEST_CASE(u8"第一个例子 ", "[GLSL4BOOK][active]")
 {
     struct Content
     {

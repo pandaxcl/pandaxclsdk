@@ -24,7 +24,7 @@ template<typename Description> class study_opengl
     struct detect
     {
 #define STUDY_OPENGL_DETECT(initialize, ...)                                                                                          \
-        struct initialize                                                                                                             \
+        struct initialize##_t                                                                                                         \
         {                                                                                                                             \
             template<typename D>static int test(...);                                                                                 \
             template<typename D>static std::enable_if_t<std::is_function<decltype(&D::initialize)(D,##__VA_ARGS__)>::value> test(int);\
@@ -37,17 +37,17 @@ template<typename Description> class study_opengl
 #undef STUDY_OPENGL_DETECT
         
         template<typename D>static void initialize(...) {}
-        template<typename D>static std::enable_if_t<initialize::template exist<D>()> initialize(self_t*self) { self->d.initialize(); }
+        template<typename D>static std::enable_if_t<initialize_t::template exist<D>()> initialize(self_t*self) { self->d.initialize(); }
         
         template<typename D>static void display(...) {}
-        template<typename D>static std::enable_if_t<display::template exist<D>()> display(self_t*self) { self->d.display(); }
+        template<typename D>static std::enable_if_t<display_t::template exist<D>()> display(self_t*self) { self->d.display(); }
         
         template<typename D>static void terminate(...) {}
-        template<typename D>static std::enable_if_t<terminate::template exist<D>()> display(self_t*self) { self->d.terminate(); }
+        template<typename D>static std::enable_if_t<terminate_t::template exist<D>()> terminate(self_t*self) { self->d.terminate(); }
     };
     
-    static_assert(detect::initialize::template exist<Description>(), "");
-    static_assert(detect::display   ::template exist<Description>(), "");
+    static_assert(detect::initialize_t::template exist<Description>(), "");
+    static_assert(detect::display_t   ::template exist<Description>(), "");
     //static_assert(detect::terminate ::template exist<Description>(), "");
     
     Description d;

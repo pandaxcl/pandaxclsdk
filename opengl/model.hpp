@@ -29,7 +29,7 @@ namespace model
         }
         static void position_as_member_of_vertex_array_object()
         {
-            glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+            glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)nullptr);
         }
         
         static void color_as_buffer_object()
@@ -42,7 +42,7 @@ namespace model
         }
         static void color_as_member_of_vertex_array_object()
         {
-            glVertexAttribPointer(color_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+            glVertexAttribPointer(color_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)nullptr);
         }
         static void display()
         {
@@ -69,7 +69,7 @@ namespace model
         }
         void position_as_member_of_vertex_array_object()
         {
-            glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+            glVertexAttribPointer(position_location, 3, GL_FLOAT, GL_FALSE, 0, (GLubyte *)nullptr);
         }
         
         void texture_as_buffer_object()
@@ -84,7 +84,7 @@ namespace model
         }
         void texture_as_member_of_vertex_array_object()
         {
-            glVertexAttribPointer(texture_location, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte *)NULL);
+            glVertexAttribPointer(texture_location, 2, GL_FLOAT, GL_FALSE, 0, (GLubyte *)nullptr);
         }
         
         void element_as_buffer_object()

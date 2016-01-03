@@ -8,11 +8,8 @@
 
 #include "texture.hpp"
 
-#include <FreeImagePlus.h>
+#include <FreeImage.h>
 
-#ifdef _DEBUG
-#   pragma comment(lib, "freeimaged.lib")
-#else
-#   pragma comment(lib, "freeimage.lib")
-#endif
+#pragma comment(lib, "freeimage.lib")
+
 
