@@ -7,9 +7,6 @@
 [submodule "lib3rd/glm.git"]
 	path = lib3rd/glm.git
 	url = https://github.com/g-truc/glm.git
-[submodule "lib3rd/boost.git"]
-	path = lib3rd/boost.git
-	url = https://github.com/boostorg/boost.git
 [submodule "lib3rd/Objloader.git"]
 	path = lib3rd/Objloader.git
 	url = https://github.com/dunyusan/Objloader.git
