@@ -10,3 +10,7 @@
 [submodule "lib3rd/Objloader.git"]
 	path = lib3rd/Objloader.git
 	url = https://github.com/dunyusan/Objloader.git
+[submodule "runtime/media"]
+	path = runtime/media
+	url = git@42.96.140.163:~/pandaxclsdk.git
+	branch = media
