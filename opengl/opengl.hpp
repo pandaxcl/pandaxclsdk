@@ -16,29 +16,109 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <future>
 
-class opengl;
-class window
+template<typename Description> class study_opengl
 {
-	friend window&operator<<(window&&w, opengl&o);
+    typedef study_opengl self_t;
+    struct detect
+    {
+#define STUDY_OPENGL_DETECT(initialize, ...)                                                                                          \
+        struct initialize                                                                                                             \
+        {                                                                                                                             \
+            template<typename D>static int test(...);                                                                                 \
+            template<typename D>static std::enable_if_t<std::is_function<decltype(&D::initialize)(D,##__VA_ARGS__)>::value> test(int);\
+            template<typename D>static constexpr bool exist() { return std::is_void<decltype(test<D>(0))>::value; }                   \
+        };                                                                                                                            \
+        /* 上面是宏的续行符，这里不能有代码 */
+        STUDY_OPENGL_DETECT(initialize)
+        STUDY_OPENGL_DETECT(display)
+        STUDY_OPENGL_DETECT(terminate)
+#undef STUDY_OPENGL_DETECT
+        
+        template<typename D>static void initialize(...) {}
+        template<typename D>static std::enable_if_t<initialize::template exist<D>()> initialize(self_t*self) { self->d.initialize(); }
+        
+        template<typename D>static void display(...) {}
+        template<typename D>static std::enable_if_t<display::template exist<D>()> display(self_t*self) { self->d.display(); }
+        
+        template<typename D>static void terminate(...) {}
+        template<typename D>static std::enable_if_t<terminate::template exist<D>()> display(self_t*self) { self->d.terminate(); }
+    };
+    
+    static_assert(detect::initialize::template exist<Description>(), "");
+    static_assert(detect::display   ::template exist<Description>(), "");
+    //static_assert(detect::terminate ::template exist<Description>(), "");
+    
+    Description d;
 public:
-	window();
-	~window();
-private:
-	std::function<void()> lambda_display;
-};
-
-class opengl
-{
-	friend window&operator<<(window&&w, opengl&o);
-public:
-    opengl();
-    ~opengl();
-    opengl&display(std::function<void()>&&);
-    opengl&initialize(std::function<void()>&&);
-private:
-    std::function<void()> lambda_display    = nullptr;
-    std::function<void()> lambda_initialize = [](){};
+    study_opengl()
+    {
+        /* Initialize the library */
+        if (!glfwInit())
+            return;
+        
+        glfwWindowHint( GLFW_CONTEXT_VERSION_MAJOR, 4 );
+        glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 1 );
+        glfwWindowHint( GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE );
+        glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
+        
+        /* Create a windowed mode window and its OpenGL context */
+        GLFWwindow*theWindow = glfwCreateWindow(640, 480, "Hello World GLFW", NULL, NULL);
+        if (!theWindow)
+        {
+            glfwTerminate();
+            return;
+        }
+        
+        /* Make the window's context current */
+        glfwMakeContextCurrent(theWindow);
+        
+        glfwSetWindowUserPointer(theWindow, this);
+        glfwSetWindowRefreshCallback(theWindow, [](GLFWwindow*theWindow){
+            self_t*self = static_cast<self_t*>(glfwGetWindowUserPointer(theWindow));
+            detect::template display<Description>(self);
+            /* Swap front and back buffers */
+            glfwSwapBuffers(theWindow);
+        });
+        
+        glewExperimental = true;
+        GLenum err = glewInit();
+        if (GLEW_OK != err)
+        {
+            std::cerr << "Error initializing GLEW: " << glewGetErrorString(err) << std::endl;
+        }
+        
+        std::cout << "GLFW version                : " << glfwGetVersionString() << std::endl;
+        std::cout << "GL_VERSION                  : " << glGetString( GL_VERSION ) << std::endl;
+        std::cout << "GL_VENDOR                   : " << glGetString( GL_VENDOR ) << std::endl;
+        std::cout << "GL_RENDERER                 : " << glGetString( GL_RENDERER ) << std::endl;
+        std::cout << "GL_SHADING_LANGUAGE_VERSION : " << glGetString( GL_SHADING_LANGUAGE_VERSION ) << std::endl;
+    }
+    ~study_opengl()
+    {
+        std::atomic<bool> OK(true);
+        
+        auto f = std::async([&OK]() {
+            std::this_thread::sleep_for(std::chrono::seconds(10));
+            OK = false;
+        });
+        detect::template initialize<Description>(this);
+        GLFWwindow*theWindow = glfwGetCurrentContext();
+        /* Loop until the user closes the window */
+        while (!glfwWindowShouldClose(theWindow))
+        {
+            if (!OK)
+                glfwSetWindowShouldClose(theWindow, true);
+            
+            /* Poll for and process events */
+            glfwPollEvents();
+        }
+        
+        f.get();
+        detect::template terminate<Description>(this);
+        glfwTerminate();
+    }
 };
 
 template<typename Description>class gpu_program

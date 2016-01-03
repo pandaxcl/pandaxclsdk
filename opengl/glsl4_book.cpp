@@ -65,125 +65,123 @@ namespace block
     };
 }
 
-TEST_CASE(u8"第一个例子", "[GLSL4BOOK]")
+TEST_CASE(u8"第一个例子", "[GLSL4BOOK][active]")
 {
-	struct Local
-	{
-		vertex_array_object<model::Triangle> vao;
-		GLuint programHandle = 0;
-	};
-	auto local = std::make_shared<Local>();
-
-	opengl render;
-	render
-		.initialize([local, &render]() {
-			{
-				struct Description
-				{
-					static const GLchar*vertex_shader()
-					{
-						return u8R"(
+    struct Content
+    {
+        vertex_array_object<model::Triangle> vao;
+        GLuint programHandle = 0;
+        void initialize()
+        {
+            {
+                struct Description
+                {
+                    static const GLchar*vertex_shader()
+                    {
+                        return u8R"(
 #version 400
-in vec3 VertexPosition;
-in vec3 VertexColor;
-out vec3 Color;
-void main()
-{
-    Color = VertexColor;
-    gl_Position = vec4( VertexPosition, 1.0 );
-}
-                       )";
-					}
-					static const GLchar*fragment_shader()
-					{
-						return u8R"(
+                        in vec3 VertexPosition;
+                        in vec3 VertexColor;
+                        out vec3 Color;
+                        void main()
+                        {
+                            Color = VertexColor;
+                            gl_Position = vec4( VertexPosition, 1.0 );
+                        }
+                        )";
+                    }
+                    static const GLchar*fragment_shader()
+                    {
+                        return u8R"(
 #version 400
-in vec3 Color;
-out vec4 FragColor;
-void main()
-{
-    FragColor = vec4(Color, 1.0);
-}
-                       )";
-					}
-				};
-				local->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
-			}
-			{
-				local->vao.send_to_opengl();
-			}
-	})
-		.display([local]() {
-		glClear(GL_COLOR_BUFFER_BIT);
-		glUseProgram(local->programHandle);
-		local->vao.display();
-	});
-
-	window() << render;
+                        in vec3 Color;
+                        out vec4 FragColor;
+                        void main()
+                        {
+                            FragColor = vec4(Color, 1.0);
+                        }
+                        )";
+                    }
+                };
+                this->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+            }
+            {
+                this->vao.send_to_opengl();
+            }
+        }
+        void display()
+        {
+            glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(this->programHandle);
+            this->vao.display();
+        }
+    };
+    
+    study_opengl<Content>();
 }
 
 TEST_CASE(u8"通过uniform变量传递数据到顶点着色器", "[GLSL4BOOK]")
 {
-	struct Local
-	{
-		vertex_array_object<model::Triangle> vao;
-		GLuint programHandle = 0;
-	};
-	auto local = std::make_shared<Local>();
-
-	opengl render;
-	render
-		.initialize([local, &render]() {
-			{
-				struct Description
-				{
-					static const GLchar*vertex_shader()
-					{
-						return u8R"(
+    struct Content
+    {
+        vertex_array_object<model::Triangle> vao;
+        GLuint programHandle = 0;
+        
+        void initialize()
+        {
+            {
+                struct Description
+                {
+                    static const GLchar*vertex_shader()
+                    {
+                        return u8R"(
 #version 400
-layout (location = 0) in vec3 VertexPosition;
-layout (location = 1) in vec3 VertexColor;
-out vec3 Color;
-uniform mat4 RotationMatrix; 
-void main()
-{
-    Color = VertexColor;
-    gl_Position = RotationMatrix * vec4( VertexPosition, 1.0 );
-}
-                       )";
-					}
-					static const GLchar*fragment_shader()
-					{
-						return u8R"(
+                        layout (location = 0) in vec3 VertexPosition;
+                        layout (location = 1) in vec3 VertexColor;
+                        out vec3 Color;
+                        uniform mat4 RotationMatrix;
+                        void main()
+                        {
+                            Color = VertexColor;
+                            gl_Position = RotationMatrix * vec4( VertexPosition, 1.0 );
+                        }
+                        )";
+                    }
+                    static const GLchar*fragment_shader()
+                    {
+                        return u8R"(
 #version 400
-in vec3 Color;
-layout (location = 0) out vec4 FragColor;
-void main()
-{
-    FragColor = vec4(Color, 1.0);
-}
-                       )";
-					}
-				};
-				local->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
-			}
-			{
-				local->vao.send_to_opengl();
-			}
-	})
-		.display([local]() {
-		glClear(GL_COLOR_BUFFER_BIT);
-		glUseProgram(local->programHandle);
-		
-		glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0, 0, 1));
-		GLuint location = glGetUniformLocation(local->programHandle, "RotationMatrix");
-		assert(location >= 0);
-		glUniformMatrix4fv(location, 1, GL_FALSE, &rotationMatrix[0][0]);
-		
-		local->vao.display();
-	});
-
-	window() << render;
+                        in vec3 Color;
+                        layout (location = 0) out vec4 FragColor;
+                        void main()
+                        {
+                            FragColor = vec4(Color, 1.0);
+                        }
+                        )";
+                    }
+                };
+                this->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+            }
+            {
+                this->vao.send_to_opengl();
+            }
+        }
+        
+        void display()
+        {
+            glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(this->programHandle);
+            
+            glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0, 0, 1));
+            GLuint location = glGetUniformLocation(this->programHandle, "RotationMatrix");
+            assert(location >= 0);
+            glUniformMatrix4fv(location, 1, GL_FALSE, &rotationMatrix[0][0]);
+            
+            this->vao.display();
+        }
+    };
+    
+    study_opengl<Content>();
 }
 
 TEST_CASE(u8"通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK]")
@@ -220,122 +218,123 @@ TEST_CASE(u8"通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK]
             free(blockBuffer);
         }
     };
-    struct Local
+    
+    struct Content
     {
         vertex_array_object<model::Rectangle> vao;
         block::uniform<BlobSettings> blobSettings;
         GLuint programHandle = 0;
-    };
-    auto local = std::make_shared<Local>();
-    
-    opengl render;
-    render
-    .initialize([local, &render]() {
+        void initialize()
         {
-            struct Description
             {
-                static const GLchar*vertex_shader()
+                struct Description
                 {
-                    return u8R"(
-#version 400
-                    layout (location = 0) in vec3 VertexPosition;
-                    layout (location = 1) in vec3 VertexTexCoord;
-                    out vec3 TexCoord;
-                    void main()
+                    static const GLchar*vertex_shader()
                     {
-                        TexCoord = VertexTexCoord;
-                        gl_Position = vec4(VertexPosition,1.0);
+                        return u8R"(
+#version 400
+                        layout (location = 0) in vec3 VertexPosition;
+                        layout (location = 1) in vec3 VertexTexCoord;
+                        out vec3 TexCoord;
+                        void main()
+                        {
+                            TexCoord = VertexTexCoord;
+                            gl_Position = vec4(VertexPosition,1.0);
+                        }
+                        )";
                     }
-                    )";
-                }
-                static const GLchar*fragment_shader()
-                {
-                    return u8R"(
+                    static const GLchar*fragment_shader()
+                    {
+                        return u8R"(
 #version 400
-                    in vec3 TexCoord;
-                    layout (location = 0) out vec4 FragColor;
-                    uniform BlobSettings
-                    {
-                        vec4 InnerColor;
-                        vec4 OuterColor;
-                        float RadiusInner;
-                        float RadiusOuter;
-                    };
-                    void main()
-                    {
-                        float dx = TexCoord.x - 0.5;
-                        float dy = TexCoord.y - 0.5;
-                        float dist = sqrt(dx * dx + dy * dy);
-                        FragColor = mix( InnerColor, OuterColor, smoothstep( RadiusInner, RadiusOuter, dist ) ); 
-                    } 
-                    )";
-                }
-            };
-            local->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+                        in vec3 TexCoord;
+                        layout (location = 0) out vec4 FragColor;
+                        uniform BlobSettings
+                        {
+                            vec4 InnerColor;
+                            vec4 OuterColor;
+                            float RadiusInner;
+                            float RadiusOuter;
+                        };
+                        void main()
+                        {
+                            float dx = TexCoord.x - 0.5;
+                            float dy = TexCoord.y - 0.5;
+                            float dist = sqrt(dx * dx + dy * dy);
+                            FragColor = mix( InnerColor, OuterColor, smoothstep( RadiusInner, RadiusOuter, dist ) );
+                        }
+                        )";
+                    }
+                };
+                this->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+            }
+            {
+                this->vao.send_to_opengl();
+            }
+            {
+                this->blobSettings.send_to_opengl(this->programHandle);
+            }
         }
+        void display()
         {
-            local->vao.send_to_opengl();
+            glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(this->programHandle);
+            this->blobSettings.update();
+            this->vao.display();
         }
-        {
-            local->blobSettings.send_to_opengl(local->programHandle);
-        }
-    })
-    .display([local]() {
-        glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(local->programHandle);
-        local->blobSettings.update();
-        local->vao.display();
-    });
-
-	window() << render;
+    };
+    
+    study_opengl<Content>();
 }
 
-TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit][active]")
+TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit]")
 {
-    struct Local
+    struct Content
     {
         GLuint programHandle = 0;
         vertex_array_object<model::Rabbit> vao;
-    };
-    auto local = std::make_shared<Local>();
-    opengl render;
-    render.initialize([local](){
+        void initialize()
         {
-            struct Description
             {
-                static const GLchar*vertex_shader()
+                struct Description
                 {
-                    return u8R"(
-#version 400
-                    layout (location = 0) in vec3 VertexPosition;
-                    void main()
+                    static const GLchar*vertex_shader()
                     {
-                        gl_Position = vec4(VertexPosition, 1);
-                    }
-                    )";
-                }
-                static const GLchar*fragment_shader()
-                {
-                    return u8R"(
+                        return u8R"(
 #version 400
-                    layout (location = 0) out vec4 FragColor;
-                    void main()
-                    {
-                        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                        layout (location = 0) in vec3 VertexPosition;
+                        void main()
+                        {
+                            gl_Position = vec4(VertexPosition, 1);
+                        }
+                        )";
                     }
-                    )";
-                }
-            };
-            local->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+                    static const GLchar*fragment_shader()
+                    {
+                        return u8R"(
+#version 400
+                        layout (location = 0) out vec4 FragColor;
+                        void main()
+                        {
+                            FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                        }
+                        )";
+                    }
+                };
+                this->programHandle = gpu_program<Description>().send_to_opengl().report().gl_handle();
+            }
+            {
+                this->vao.send_to_opengl();
+            }
         }
+        
+        void display()
         {
-            local->vao.send_to_opengl();
+            glClear(GL_COLOR_BUFFER_BIT);
+            glUseProgram(this->programHandle);
+            this->vao.display();
         }
-    })
-    .display([local](){
-        glClear(GL_COLOR_BUFFER_BIT);
-        glUseProgram(local->programHandle);
-        local->vao.display();
-    });
-    window() << render;
+    };
+    
+    study_opengl<Content>();
 }
