@@ -65,7 +65,7 @@ namespace block
     };
 }
 
-TEST_CASE(u8"第一个例子 ", "[GLSL4BOOK][active]")
+TEST_CASE(u8"第一个例子 ", "[GLSL4BOOK]")
 {
     struct Content
     {
@@ -287,7 +287,7 @@ TEST_CASE(u8"通过uniform块变量传递数据到片元着色器", "[GLSL4BOOK]
     study_opengl<Content>();
 }
 
-TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit]")
+TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit][active]")
 {
     struct Content
     {

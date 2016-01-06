@@ -130,7 +130,7 @@ namespace model
     
     void Rabbit::will_send_to_opengl()
     {
-        model = glmReadOBJ("/Users/pandaxcl/Downloads/f7a816806b2db955e28628ec1aacd0cc/028.obj");
+        model = glmReadOBJ("media/media/model/rabbit.obj");
         glmUnitize(model);
         super::will_send_to_opengl();
     }
