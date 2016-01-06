@@ -298,25 +298,44 @@ TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit][active]")
             {
                 struct Description
                 {
-                    static const GLchar*vertex_shader()
+                    const GLchar*vertex_shader()
                     {
                         return u8R"(
 #version 400
                         layout (location = 0) in vec3 VertexPosition;
+                        layout (location = 1) in vec3 VertexNormal;
+                        
+                        out vec3 LightIntensity;
+                        
+                        uniform vec4 LightPosition;
+                        uniform vec3 Kd;
+                        uniform vec3 Ld;
+                        
+                        uniform mat4 ModelViewMatrix;
+                        uniform mat3 NormalMatrix;
+                        uniform mat4 ProjectMatrix;
+                        uniform mat4 MVP; // Projection * ModelView
                         void main()
                         {
+                            vec3 tnorm = normalize (NormalMatrix * VertexNormal);
+                            vec4 eyeCoords = ModelViewMatrix * vec4(VertexPosition, 1.0);
+                            vec3 s = normalize(vec3(LightPosition - eyeCoords));
+                            
+                            LightIntensity = Ld*Kd*max(dot(s, tnorm), 0.0);
+                            
                             gl_Position = vec4(VertexPosition, 1);
                         }
                         )";
                     }
-                    static const GLchar*fragment_shader()
+                    const GLchar*fragment_shader()
                     {
                         return u8R"(
 #version 400
+                        in vec3 LightIntensity;
                         layout (location = 0) out vec4 FragColor;
                         void main()
                         {
-                            FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                            FragColor = vec4(LightIntensity, 1.0);
                         }
                         )";
                     }
@@ -332,6 +351,44 @@ TEST_CASE(u8"绘制兔子模型", "[objmesh][rabbit][active]")
         {
             glClear(GL_COLOR_BUFFER_BIT);
             glUseProgram(this->programHandle);
+            {// uniform vec4 LightPosition;
+                GLfloat v[] = {0.0f, 0.0f, 10.0f, 1.0f};
+                GLint location = glGetUniformLocation(this->programHandle, "LightPosition");
+                glUniform4fv(location, 1, v);
+            }
+
+            {// uniform vec3 Kd;
+                GLfloat v[] = {1.0f, 1.0f, 1.0f};
+                GLint location = glGetUniformLocation(this->programHandle, "Kd");
+                glUniform3fv(location, 1, v);
+            }
+            {// uniform vec3 Ld;
+                GLfloat v[] = {1.0f, 1.0f, 1.0f};
+                GLint location = glGetUniformLocation(this->programHandle, "Ld");
+                glUniform3fv(location, 1, v);
+            }
+            
+            {// uniform mat4 ModelViewMatrix;
+                auto v = glm::mat4(1.0f);
+                GLint location = glGetUniformLocation(this->programHandle, "ModelViewMatrix");
+                glUniformMatrix4fv(location, 1, GL_FALSE, &v[0][0]);
+            }
+            {// uniform mat3 NormalMatrix;
+                auto v = glm::mat3(1.0f);
+                GLint location = glGetUniformLocation(this->programHandle, "NormalMatrix");
+                glUniformMatrix3fv(location, 1, GL_FALSE, &v[0][0]);
+            }
+            {// uniform mat4 ProjectMatrix;
+                auto v = glm::perspective(glm::degrees(60.0f), 4.0f/3.0f, 0.01f, 100.f);
+                GLint location = glGetUniformLocation(this->programHandle, "ProjectMatrix");
+                glUniformMatrix4fv(location, 1, GL_FALSE, &v[0][0]);
+            }
+            {// uniform mat4 MVP;
+                auto v = glm::mat4(1.0f);
+                GLint location = glGetUniformLocation(this->programHandle, "MVP");
+                glUniformMatrix4fv(location, 1, GL_FALSE, &v[0][0]);
+            }
+
             this->vao.display();
         }
     };
