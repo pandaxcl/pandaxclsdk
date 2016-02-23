@@ -43,7 +43,7 @@ struct section_exception {};// 为了利用throw而引入的一个特殊的异�
 	SECTION()
 
 
-void f(bool reenter=false)
+void f(bool reenter=false) try
 {
 	std::cout<<"1"<<std::endl;
 	TEST_CASE(reenter)
@@ -59,19 +59,23 @@ void f(bool reenter=false)
 		}
 	}
 }
+catch(section_exception&)
+{
+}
+
 int main()
 {
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"==========="<<std::endl;
-	try { f(true); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"-----------"<<std::endl;
-	try { f(    ); } catch(section_exception&) {} std::cout<<"==========="<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"==========="<<std::endl;
+	f(true); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"-----------"<<std::endl;
+	f(    ); std::cout<<"==========="<<std::endl;
 	return 0;
 }
