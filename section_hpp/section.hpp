@@ -33,54 +33,56 @@ namespace section
             return _should_execute.yes(LINE);
         }
     };
-	void throw_exception() { throw exception(); }
+    void throw_exception() { throw exception(); }
 }// namespace section
 
 
 
 #define SECTION()\
-	for (auto&&v=section::section<__LINE__>(should_execute, max_depth_line);v;section::throw_exception())
+    for (auto&&__20160224__=section::section<__LINE__>(should_execute, max_depth_line);__20160224__;section::throw_exception())
 
-#define SECTION_TREE(reenter)                     \
-	static section::should_execute should_execute;\
-	if (reenter) should_execute.clear();          \
-	int max_depth_line = 0;                       \
-	SECTION()
+#define SECTION_TREE_BEGIN()                      \
+    static section::should_execute should_execute;\
+    int max_depth_line = 0;                       \
+    try {
+
+#define SECTION_TREE_END()         \
+    should_execute.clear();        \
+    } catch(section::exception&) {}
 
 #include <iostream>
-void f(bool reenter=false) try
+void f() 
 {
-	std::cout<<"1"<<std::endl;
-	SECTION_TREE(reenter)
-	{
-		std::cout<<"2"<<std::endl;
-		SECTION() // 子代码段1
-		{
-			std::cout<<"3"<<std::endl;
-		}
-		SECTION() // 子代码段2
-		{
-			std::cout<<"4"<<std::endl;
-		}
-	}
+    SECTION_TREE_BEGIN()
+    {
+        std::cout<<"1"<<std::endl;
+        {
+            std::cout<<"2"<<std::endl;
+            SECTION() // 子代码段1
+            {
+                std::cout<<"3"<<std::endl;
+            }
+            SECTION() // 子代码段2
+            {
+                std::cout<<"4"<<std::endl;
+            }
+        }
+    }
+    SECTION_TREE_END()
 }
-catch(section::exception&)
-{
-}
-
 int main()
 {
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"==========="<<std::endl;
-	f(true); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"-----------"<<std::endl;
-	f(    ); std::cout<<"==========="<<std::endl;
-	return 0;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"==========="<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"-----------"<<std::endl;
+    f(); std::cout<<"==========="<<std::endl;
+    return 0;
 }
