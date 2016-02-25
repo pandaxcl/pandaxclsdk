@@ -7,21 +7,21 @@ namespace section
     {
         std::set<int> flags;
     public:
-        bool should_execute(int line) { return flags.end() == flags.find(line); }
-        void record        (int line) { flags.insert(line); }
-        void clear         ()         { flags.clear(); }
+        bool should_execute  (int line) { return flags.end() == flags.find(line); }
+        void record_executed (int line) { flags.insert(line); }
+        void make_reenterable()         { flags.clear(); }
     };
     template<int LINE> struct section
     {
         condition &_condition;
         int       &_counter;
         
-        section(condition&A, int&B) : _condition(A), _counter(B)
+        section(condition&A, int&B): _condition(A), _counter(B)
         {
             if (_condition.should_execute(LINE))
                 _counter = LINE;
         }
-        ~section() { if (LINE == _counter) _condition.record(LINE); }
+        ~section() { if (LINE == _counter) _condition.record_executed(LINE); }
         operator bool() { return _condition.should_execute(LINE); }
     };
 }// namespace section
@@ -36,25 +36,23 @@ namespace section
     int                       section_counter = 0;
 
 #define SECTION_TREE_MAKE_REENTER()\
-    section_condition.clear();
+    section_condition.make_reenterable();
 
 
 #include <iostream>
 void f() 
 {
+    std::cout<<"1"<<std::endl;
     SECTION_TREE() try 
     {
-        std::cout<<"1"<<std::endl;
+        std::cout<<"2"<<std::endl;
+        SECTION() // 子代码段1
         {
-            std::cout<<"2"<<std::endl;
-            SECTION() // 子代码段1
-            {
-                std::cout<<"3"<<std::endl;
-            }
-            SECTION() // 子代码段2
-            {
-                std::cout<<"4"<<std::endl;
-            }
+            std::cout<<"3"<<std::endl;
+        }
+        SECTION() // 子代码段2
+        {
+            std::cout<<"4"<<std::endl;
         }
         SECTION_TREE_MAKE_REENTER()
     } catch (section::exception&) {}
