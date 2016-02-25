@@ -26,7 +26,7 @@ namespace section
     };
 }// namespace section
 
-
+#ifdef SECTION_HPP_ENABLE_SAMPLE
 
 #define SECTION()\
     for (auto&&__20160224__=section::section<__LINE__>(section_condition, section_counter);__20160224__;throw section::exception())
@@ -73,3 +73,5 @@ int main()
     f(); std::cout<<"==========="<<std::endl;
     return 0;
 }
+
+#endif// SECTION_HPP_ENABLE_SAMPLE
