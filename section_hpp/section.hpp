@@ -3,49 +3,40 @@
 namespace section
 {
     struct exception {};// 为了利用throw而引入的一个特殊的异常
-    class should_execute
+    class condition
     {
         std::set<int> flags;
     public:
-        bool yes   (int line) { return flags.end() == flags.find(line); }
-        void record(int line) { flags.insert(line); }
-        void clear ()         { flags.clear(); }
+        bool should_execute(int line) { return flags.end() == flags.find(line); }
+        void record        (int line) { flags.insert(line); }
+        void clear         ()         { flags.clear(); }
     };
     template<int LINE> struct section
     {
-        should_execute &_should_execute;
-        int            &_max_depth_line;
+        condition &_condition;
+        int       &_counter;
         
-        section(should_execute&A, int&B)
-        : _should_execute(A)
-        , _max_depth_line(B)
+        section(condition&A, int&B) : _condition(A), _counter(B)
         {
-            if (_should_execute.yes(LINE))
-                _max_depth_line = LINE;
+            if (_condition.should_execute(LINE))
+                _counter = LINE;
         }
-        ~section()
-        {
-            if (LINE == _max_depth_line)
-                _should_execute.record(LINE);
-        }
-        operator bool()
-        {
-            return _should_execute.yes(LINE);
-        }
+        ~section() { if (LINE == _counter) _condition.record(LINE); }
+        operator bool() { return _condition.should_execute(LINE); }
     };
 }// namespace section
 
 
 
 #define SECTION()\
-    for (auto&&__20160224__=section::section<__LINE__>(should_execute, max_depth_line);__20160224__;throw section::exception())
+    for (auto&&__20160224__=section::section<__LINE__>(section_condition, section_counter);__20160224__;throw section::exception())
 
-#define SECTION_TREE()                                \
-    static section::should_execute should_execute;    \
-    int                            max_depth_line = 0;
+#define SECTION_TREE()                            \
+    static section::condition section_condition;  \
+    int                       section_counter = 0;
 
 #define SECTION_TREE_MAKE_REENTER()\
-    should_execute.clear();
+    section_condition.clear();
 
 
 #include <iostream>
