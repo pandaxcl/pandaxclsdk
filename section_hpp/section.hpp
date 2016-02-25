@@ -33,27 +33,25 @@ namespace section
             return _should_execute.yes(LINE);
         }
     };
-    void throw_exception() { throw exception(); }
 }// namespace section
 
 
 
 #define SECTION()\
-    for (auto&&__20160224__=section::section<__LINE__>(should_execute, max_depth_line);__20160224__;section::throw_exception())
+    for (auto&&__20160224__=section::section<__LINE__>(should_execute, max_depth_line);__20160224__;throw section::exception())
 
-#define SECTION_TREE_BEGIN()                      \
-    static section::should_execute should_execute;\
-    int max_depth_line = 0;                       \
-    try {
+#define SECTION_TREE()                                \
+    static section::should_execute should_execute;    \
+    int                            max_depth_line = 0;
 
-#define SECTION_TREE_END()         \
-    should_execute.clear();        \
-    } catch(section::exception&) {}
+#define SECTION_TREE_MAKE_REENTER()\
+    should_execute.clear();
+
 
 #include <iostream>
 void f() 
 {
-    SECTION_TREE_BEGIN()
+    SECTION_TREE() try 
     {
         std::cout<<"1"<<std::endl;
         {
@@ -67,8 +65,8 @@ void f()
                 std::cout<<"4"<<std::endl;
             }
         }
-    }
-    SECTION_TREE_END()
+        SECTION_TREE_MAKE_REENTER()
+    } catch (section::exception&) {}
 }
 int main()
 {
