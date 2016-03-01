@@ -11,32 +11,41 @@ namespace section
         void record_executed (int line) { flags.insert(line); }
         void make_reenterable()         { flags.clear(); }
     };
+
+	class counter
+	{
+		int _line = 0;
+	public:
+		void set_line(int line) { _line = line; }
+		int  line() { return _line; }
+		bool is_line(int line) { return _line == line; }
+	};
+
+	class context:public condition, public counter
+	{
+	};
+
     template<int LINE> struct section
     {
-        condition &_condition;
-        int       &_counter;
-        
-        section(condition&A, int&B): _condition(A), _counter(B)
+		context& _context;
+        section(context&C): _context(C)
         {
-            if (_condition.should_execute(LINE))
-                _counter = LINE;
+            if (_context.should_execute(LINE))
+                _context.set_line(LINE);
         }
-        ~section() { if (LINE == _counter) _condition.record_executed(LINE); }
-        operator bool() { return _condition.should_execute(LINE); }
+        ~section() { if (_context.is_line(LINE)) _context.record_executed(LINE); }
+        operator bool() { return _context.should_execute(LINE); }
     };
 }// namespace section
 
 #ifdef SECTION_HPP_ENABLE_SAMPLE
 
 #define SECTION()\
-    for (auto&&__20160224__=section::section<__LINE__>(section_condition, section_counter);__20160224__;throw section::exception())
+    for (auto&&__20160224__=section::section<__LINE__>(section_context);__20160224__;throw section::exception())
 
-#define SECTION_TREE()                            \
-    static section::condition section_condition;  \
-    int                       section_counter = 0;
+#define SECTION_TREE() static section::context section_context;
 
-#define SECTION_TREE_MAKE_REENTER()\
-    section_condition.make_reenterable();
+#define SECTION_TREE_MAKE_REENTER() section_context.make_reenterable();
 
 
 #include <iostream>
