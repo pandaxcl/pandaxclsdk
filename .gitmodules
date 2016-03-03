@@ -1,0 +1,4 @@
+[submodule "src/pandaxclsdk.git/section.hpp"]
+	path = src/pandaxclsdk.git/section.hpp
+	url = git@42.96.140.163:~/pandaxclsdk.git
+	branch = section.hpp
