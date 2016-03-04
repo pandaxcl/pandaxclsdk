@@ -1,11 +1,10 @@
-#include <set>
 
 namespace section
 {
     struct exception {};// 为了利用throw而引入的一个特殊的异常
     class condition
     {
-        std::set<int> flags;
+        std::unordered_set<int> flags;
     public:
         bool should_execute  (int line) { return flags.end() == flags.find(line); }
         void record_executed (int line) { flags.insert(line); }
