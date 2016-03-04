@@ -1,6 +1,6 @@
 #ifndef __PANDAXCLSDK_GIT_SECTION_HPP__
 #define __PANDAXCLSDK_GIT_SECTION_HPP__
-namespace xcl {
+namespace pandaxcl {
 #include "./src/pandaxclsdk.git/section.hpp/section/section.hpp"
-} //namespace xcl {
+} //namespace pandaxcl {
 #endif//__PANDAXCLSDK_GIT_SECTION_HPP__
