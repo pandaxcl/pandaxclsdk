@@ -6,6 +6,7 @@ class kvo_property
 private:
     T m;
 public:
+    kvo_property() = delete;
     kvo_property(T m) :subject(this->m=m) { }
     rxcpp::subjects::behavior<T> subject;
     T&get() { return m; }
@@ -23,13 +24,15 @@ public:
 template<typename T>
 class kvo_container
 {
+    std::list<T> m;
 public:
+    typedef decltype(m) container_t;
     kvo_container()
-    :subject_setting(container_t())
+    :subject_setting(this->m)
     ,subject_insertion(container_t())
     ,subject_removal(container_t()) { }
     
-    typedef std::list<T> container_t;
+    
     rxcpp::subjects::behavior<container_t> subject_setting;
     rxcpp::subjects::behavior<container_t> subject_insertion;
     rxcpp::subjects::behavior<container_t> subject_removal;
@@ -54,6 +57,5 @@ public:
             this->m.remove(x);
         subject_removal.get_subscriber().on_next(v);
     }
-private:
-    container_t m;
+
 };
